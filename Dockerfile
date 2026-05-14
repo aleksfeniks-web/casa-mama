@@ -2,12 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json ./
+# Copiar archivos de configuración primero (mejor para caché de Docker)
+COPY package*.json ./
 RUN npm install --production
 
-# Copiar todos los archivos JS de la raíz
-COPY *.js ./
+# Copiar el resto del código de la aplicación
+# Esto copiará TODO: index.js, la carpeta frontend, etc.
+COPY . .
 
-EXPOSE 3001
+# Opcional: Si quieres asegurarte de que los archivos JS estén presentes
+# COPY *.js ./
+# COPY frontend/ ./frontend/
+
+EXPOSE 3000
 
 CMD ["node", "index.js"]
