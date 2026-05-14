@@ -14,7 +14,10 @@ app.use(express.static(path.join(__dirname, 'frontend')));
 // ─── Database ────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: {
+    require: true,
+    rejectUnauthorized: false  // Para desarrollo; en producción usa verify-full
+  }
 });
 
 const initDB = async () => {
