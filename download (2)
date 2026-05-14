@@ -1,0 +1,97 @@
+const express = require('express');
+const router = express.Router();
+const { pool } = require('../db');
+
+// GET all patients
+router.get('/', async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    let query = 'SELECT * FROM patients WHERE 1=1';
+    const params = [];
+
+    if (status) {
+      params.push(status);
+      query += ` AND status = $${params.length}`;
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (name ILIKE $${params.length} OR curp ILIKE $${params.length} OR phone ILIKE $${params.length})`;
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener pacientes' });
+  }
+});
+
+// GET single patient
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM patients WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener paciente' });
+  }
+});
+
+// POST create patient
+router.post('/', async (req, res) => {
+  try {
+    const { name, birthdate, curp, phone, contact, contact_phone, entry_date, fee, status, conditions, notes } = req.body;
+
+    if (!name) return res.status(400).json({ error: 'El nombre es requerido' });
+
+    const result = await pool.query(
+      `INSERT INTO patients (name, birthdate, curp, phone, contact, contact_phone, entry_date, fee, status, conditions, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [name, birthdate || null, curp || null, phone || null, contact || null, contact_phone || null,
+       entry_date || null, fee || 0, status || 'active', conditions || null, notes || null]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear paciente' });
+  }
+});
+
+// PUT update patient
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, birthdate, curp, phone, contact, contact_phone, entry_date, fee, status, conditions, notes } = req.body;
+
+    const result = await pool.query(
+      `UPDATE patients SET
+        name=$1, birthdate=$2, curp=$3, phone=$4, contact=$5, contact_phone=$6,
+        entry_date=$7, fee=$8, status=$9, conditions=$10, notes=$11, updated_at=NOW()
+       WHERE id=$12 RETURNING *`,
+      [name, birthdate || null, curp || null, phone || null, contact || null, contact_phone || null,
+       entry_date || null, fee || 0, status || 'active', conditions || null, notes || null, req.params.id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar paciente' });
+  }
+});
+
+// DELETE patient
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM patients WHERE id=$1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Paciente no encontrado' });
+    res.json({ message: 'Paciente eliminado', id: result.rows[0].id });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar paciente' });
+  }
+});
+
+module.exports = router;
