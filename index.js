@@ -5,9 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Servidor corriendo en http://0.0.0.0:${port}`);
-});
+
 // ─── Database ────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
