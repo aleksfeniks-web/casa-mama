@@ -6,6 +6,11 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const path = require('path');
+
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, 'frontend')));
+
 // ─── Database ────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
