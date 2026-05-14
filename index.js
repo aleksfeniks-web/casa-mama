@@ -82,6 +82,10 @@ app.use(cors({
 
 app.use(express.json());
 
+// ─── Ruta raíz (sirve el frontend) ──────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) =>
