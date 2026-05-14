@@ -82,18 +82,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// ─── Ruta raíz ────────────────────────────────────────────────────────────────
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'API de Casa Mamá funcionando correctamente',
-    endpoints: {
-      health: '/health',
-      patients: '/api/patients',
-      config: '/api/config',
-      settings: '/api/settings'
-    }
-  });
-});
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) =>
