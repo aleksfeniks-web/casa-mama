@@ -1,21 +1,27 @@
-app = "casa-mama"
-primary_region = "lax"
+# fly.toml app configuration file generated for casa-mama on 2026-05-14T22:33:12Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'casa-mama'
+primary_region = 'lax'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  NODE_ENV = "production"
-  PORT     = "3001"
+  NODE_ENV = 'production'
+  PORT = '3001'
 
 [http_service]
-  internal_port       = 3001
-  force_https         = true
-  auto_stop_machines  = true
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  memory   = "256mb"
-  cpu_kind = "shared"
-  cpus     = 1
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
