@@ -1,61 +1,18 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
-
-const initDB = async () => {
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS patients (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        birthdate DATE,
-        curp VARCHAR(18),
-        phone VARCHAR(20),
-        contact VARCHAR(255),
-        contact_phone VARCHAR(20),
-        entry_date DATE,
-        fee NUMERIC(10,2) DEFAULT 0,
-        status VARCHAR(20) DEFAULT 'active',
-        conditions TEXT,
-        notes TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS financial_config (
-        id SERIAL PRIMARY KEY,
-        key VARCHAR(100) UNIQUE NOT NULL,
-        value JSONB NOT NULL,
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS settings (
-        id SERIAL PRIMARY KEY,
-        key VARCHAR(100) UNIQUE NOT NULL,
-        value TEXT,
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    // Seed default financial config if not exists
-    await client.query(`
-      INSERT INTO financial_config (key, value)
-      VALUES
-        ('initialInvestment', '100000'),
-        ('costs', '{"personal":52500,"food":30000,"medical":20000,"utilities":10000,"supplies":6500,"insurance":4000,"contingencyPercent":10}'),
-        ('pricePerPatient', '12000'),
-        ('maxCapacity', '12')
-      ON CONFLICT (key) DO NOTHING;
-    `);
-
-    console.log('✅ Base de datos inicializada correctamente');
-  } finally {
-    client.release();
+{
+  "name": "casa-mama-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
-};
-
-module.exports = { pool, initDB };
+}

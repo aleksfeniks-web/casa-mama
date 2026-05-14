@@ -5,8 +5,9 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --production
 
-COPY src/ ./src/
+# Copiar todos los archivos JS de la raíz
+COPY *.js ./
 
 EXPOSE 3001
 
-CMD ["node", "src/index.js"]
+CMD ["node", "index.js"]

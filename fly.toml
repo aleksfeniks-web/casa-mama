@@ -1,8 +1,5 @@
-# fly.toml — Configuración de Fly.io para casa-mama-api
-# Generado manualmente; ajusta "app" con el nombre que elegiste en `fly launch`
-
-app = "casa-mama-api"
-primary_region = "lax"   # Los Angeles — el más cercano a Rosarito/Tijuana
+app = "casa-mama"
+primary_region = "lax"
 
 [build]
   dockerfile = "Dockerfile"
@@ -14,11 +11,11 @@ primary_region = "lax"   # Los Angeles — el más cercano a Rosarito/Tijuana
 [http_service]
   internal_port       = 3001
   force_https         = true
-  auto_stop_machines  = true   # ahorra recursos en el plan gratuito
+  auto_stop_machines  = true
   auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  memory = "256mb"
+  memory   = "256mb"
   cpu_kind = "shared"
-  cpus = 1
+  cpus     = 1
