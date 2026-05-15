@@ -854,7 +854,7 @@
             </div>
         </div>
 
-        <div class="modal-footer">
+                <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closePagoModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="registrarPago()">Registrar y Generar Recibo</button>
         </div>
@@ -1433,8 +1433,6 @@
             document.getElementById('dashboardPacienteNombre').textContent = paciente.name || 'Paciente';
             document.getElementById('dashboardNombre').textContent = paciente.name || 'Sin nombre';
             document.getElementById('dashboardEdad').innerHTML = `<i class="fas fa-calendar-alt"></i> ${calcularEdad(paciente.birthdate)} años`;
-            document.getElementById('dashboardTele
-
             document.getElementById('dashboardTelefono').textContent = paciente.phone || 'N/A';
             document.getElementById('dashboardContacto').textContent = `${paciente.contact || 'N/A'} - ${paciente.contact_phone || ''}`;
             document.getElementById('dashboardCama').textContent = paciente.cama_asignada || 'No asignada';
@@ -2118,4 +2116,4 @@
 </script>
 </body>
 </html>
-        
+    
