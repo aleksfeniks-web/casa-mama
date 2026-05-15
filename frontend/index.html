@@ -34,6 +34,87 @@
             color: var(--dark);
         }
 
+        /* Horas de actividad */
+.activity-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    background: var(--light);
+}
+
+.activity-low { background: #fee2e2; color: #dc2626; }
+.activity-medium { background: #fed7aa; color: #d97706; }
+.activity-good { background: #d1fae5; color: #059669; }
+
+.alert-badge {
+    background: #fef3c7;
+    color: #d97706;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.75em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Timeline de empleados */
+.employee-timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+.day-schedule {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 80px;
+    text-align: center;
+}
+.day-name { font-weight: 700; font-size: 0.8em; }
+.day-hours { font-size: 0.75em; color: var(--gray); }
+.overtime-badge {
+    background: #fef3c7;
+    color: #d97706;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.7em;
+}
+
+/* Expandable card */
+.patient-card.expanded {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    z-index: 1500;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+}
+.expandable-content {
+    display: none;
+    padding: 15px;
+    background: var(--light);
+    border-radius: 12px;
+    margin-top: 15px;
+}
+.expandable-content.show {
+    display: block;
+}
+        
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--gray-light); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
@@ -1353,70 +1434,282 @@
     }
 
     function renderPatients() {
-        const grid = document.getElementById('patientsGrid');
-        if (!grid) return;
-        if (pacientes.length === 0) {
-            grid.innerHTML = '<div class="card empty-state"><i class="fas fa-users-slash"></i><h3>No hay pacientes registrados</h3><button class="btn btn-primary" onclick="openPatientModal()">Agregar Paciente</button></div>';
-            return;
-        }
+    const grid = document.getElementById('patientsGrid');
+    if (!grid) return;
+    if (pacientes.length === 0) {
+        grid.innerHTML = '<div class="card empty-state"><i class="fas fa-users-slash"></i><h3>No hay pacientes registrados</h3><button class="btn btn-primary" onclick="openPatientModal()">Agregar Paciente</button></div>';
+        return;
+    }
+    
+    grid.innerHTML = pacientes.map((p, index) => {
+        const colorIndex = index % 8;
+        const age = calcularEdad(p.birthdate);
         
-        grid.innerHTML = pacientes.map((p, index) => {
-            const colorIndex = index % 8;
-            const age = calcularEdad(p.birthdate);
-            
-            let planNombre = 'Sin plan';
-            if (p.plan_id == 1) planNombre = 'Básico';
-            else if (p.plan_id == 2) planNombre = 'Intermedio';
-            else if (p.plan_id == 3) planNombre = 'Más';
-            
-            const statusBadge = p.status === 'active' ? 
-                '<span class="badge badge-success"><i class="fas fa-circle"></i> Activo</span>' : 
-                '<span class="badge badge-warning"><i class="fas fa-circle"></i> Inactivo</span>';
-            
-            return `
-                <div class="patient-card glass-card" data-color="${colorIndex}" onclick="openPacienteDashboard(${p.id})">
-                    <div class="patient-header">
-                        <div class="patient-avatar"><i class="fas fa-user-circle"></i></div>
-                        <div class="patient-name">${escapeHtml(p.name) || 'Sin nombre'}</div>
-                        <div class="patient-status-text">${age} años</div>
-                        <div style="margin-top: 8px;">${statusBadge}</div>
-                    </div>
-                    <div class="patient-body">
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-phone"></i> Teléfono</span>
-                            <strong>${p.phone || 'N/A'}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-tag"></i> Plan</span>
-                            <strong>${planNombre}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-bed"></i> Cama</span>
-                            <strong>${p.cama_asignada || 'N/A'}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-user-friends"></i> Contacto</span>
-                            <strong>${p.contact || 'N/A'}</strong>
-                        </div>
-                        <div class="card-actions">
-                            <button class="card-action-btn" onclick="event.stopPropagation(); verHistoriaPaciente(${p.id})" style="background: rgba(16,185,129,0.8);">
-                                <i class="fas fa-notes-medical"></i> Historia
-                            </button>
-                            <button class="card-action-btn" onclick="event.stopPropagation(); verMedicamentosPaciente(${p.id})" style="background: rgba(245,158,11,0.8);">
-                                <i class="fas fa-pills"></i> Meds
-                            </button>
-                            <button class="card-action-btn admin-only" onclick="event.stopPropagation(); openEditQuickModal(${p.id})" style="background: rgba(139,92,246,0.8);">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
-                            <button class="card-action-btn admin-only" onclick="event.stopPropagation(); deletePatient(${p.id})" style="background: rgba(239,68,68,0.8);">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+        // Calcular horas de actividad (simulado - podrías obtener de API)
+        let horasActividad = p.horas_actividad || Math.floor(Math.random() * 24) + 1;
+        let actividadClass = 'activity-low';
+        if (horasActividad >= 6) actividadClass = 'activity-good';
+        else if (horasActividad >= 3) actividadClass = 'activity-medium';
+        
+        let actividadIcon = '🚶';
+        if (horasActividad >= 6) actividadIcon = '🏃';
+        else if (horasActividad >= 3) actividadIcon = '🚶';
+        else actividadIcon = '🛌';
+        
+        let planNombre = 'Sin plan';
+        if (p.plan_id == 1) planNombre = 'Básico';
+        else if (p.plan_id == 2) planNombre = 'Intermedio';
+        else if (p.plan_id == 3) planNombre = 'Más';
+        
+        const statusBadge = p.status === 'active' ? 
+            '<span class="badge badge-success"><i class="fas fa-circle"></i> Activo</span>' : 
+            '<span class="badge badge-warning"><i class="fas fa-circle"></i> Inactivo</span>';
+        
+        // Verificar adeudo
+        const tieneAdeudo = p.adeudo && p.adeudo > 0;
+        const adeudoBadge = tieneAdeudo ? '<span class="alert-badge"><i class="fas fa-exclamation-triangle"></i> Adeudo</span>' : '';
+        
+        return `
+            <div class="patient-card glass-card" data-color="${colorIndex}" data-id="${p.id}">
+                <div class="patient-header" onclick="toggleCardExpand(${p.id})">
+                    <div class="patient-avatar"><i class="fas fa-user-circle"></i></div>
+                    <div class="patient-name">${escapeHtml(p.name) || 'Sin nombre'}</div>
+                    <div class="patient-status-text">${age} años</div>
+                    <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                        ${statusBadge}
+                        ${adeudoBadge}
                     </div>
                 </div>
-            `;
-        }).join('');
+                <div class="patient-body">
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-phone"></i> Teléfono</span>
+                        <strong>${p.phone || 'N/A'}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-tag"></i> Plan</span>
+                        <strong>${planNombre}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-bed"></i> Cama</span>
+                        <strong>${p.cama_asignada || 'N/A'}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-clock"></i> Actividad diaria</span>
+                        <strong class="activity-indicator ${actividadClass}">${actividadIcon} ${horasActividad} hrs</strong>
+                    </div>
+                    <div class="card-actions">
+                        <button class="card-action-btn" onclick="event.stopPropagation(); toggleExpandContent(${p.id}, 'historia')" style="background: rgba(16,185,129,0.8);">
+                            <i class="fas fa-notes-medical"></i> Historia
+                        </button>
+                        <button class="card-action-btn" onclick="event.stopPropagation(); toggleExpandContent(${p.id}, 'medicamentos')" style="background: rgba(245,158,11,0.8);">
+                            <i class="fas fa-pills"></i> Meds
+                        </button>
+                        <button class="card-action-btn admin-only" onclick="event.stopPropagation(); openEditQuickModal(${p.id})" style="background: rgba(139,92,246,0.8);">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                    <div id="expand-content-${p.id}" class="expandable-content">
+                        <div id="expand-inner-${p.id}">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+    // Variables globales para contenido expandido
+let expandedCardId = null;
+
+function toggleCardExpand(pacienteId) {
+    const card = document.querySelector(`.patient-card[data-id="${pacienteId}"]`);
+    if (!card) return;
+    
+    if (expandedCardId === pacienteId) {
+        card.classList.remove('expanded');
+        expandedCardId = null;
+        // Cerrar contenido expandible también
+        document.getElementById(`expand-content-${pacienteId}`)?.classList.remove('show');
+    } else {
+        // Cerrar cualquier otra tarjeta expandida
+        if (expandedCardId) {
+            const prevCard = document.querySelector(`.patient-card[data-id="${expandedCardId}"]`);
+            if (prevCard) prevCard.classList.remove('expanded');
+        }
+        card.classList.add('expanded');
+        expandedCardId = pacienteId;
     }
+}
+
+async function toggleExpandContent(pacienteId, tipo) {
+    const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
+    const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
+    
+    if (!expandDiv || !innerDiv) return;
+    
+    if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === tipo) {
+        expandDiv.classList.remove('show');
+        return;
+    }
+    
+    expandDiv.dataset.currentType = tipo;
+    innerDiv.innerHTML = '<div class="spinner"></div> Cargando...';
+    expandDiv.classList.add('show');
+    
+    try {
+        if (tipo === 'historia') {
+            const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+            if (historial.length === 0) {
+                innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-notes-medical"></i> Sin historial clínico registrado</p>';
+            } else {
+                innerDiv.innerHTML = `
+                    <h4><i class="fas fa-history"></i> Últimos registros</h4>
+                    <table class="table" style="font-size:0.85em;">
+                        <thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead>
+                        <tbody>
+                            ${historial.slice(0,5).map(h => `
+                                <tr>
+                                    <td>${formatDate(h.fecha)}</td>
+                                    <td>${h.presion_arterial || '-'}</td>
+                                    <td>${h.frecuencia_cardiaca || '-'}</td>
+                                    <td>${h.temperatura || '-'}°C</td>
+                                    <td>${h.diagnostico?.substring(0,30) || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verHistoriaPaciente(${pacienteId}); event.stopPropagation();">
+                        Ver historial completo
+                    </button>
+                `;
+            }
+        } else if (tipo === 'medicamentos') {
+            const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
+            if (medicamentosPaciente.length === 0) {
+                innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
+            } else {
+                innerDiv.innerHTML = `
+                    <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
+                    <div class="med-timeline" style="flex-direction:column;">
+                        ${medicamentosPaciente.map(m => `
+                            <div class="med-item">
+                                <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
+                                <div class="med-name">${m.medicamento_nombre}</div>
+                                <div class="med-dose">${m.dosis}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosPaciente(${pacienteId}); event.stopPropagation();">
+                        Ver medicamentos completo
+                    </button>
+                `;
+            }
+        }
+    } catch (err) {
+        innerDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
+    }
+}
+
+    // Variable para trackear qué gráfico mostrar
+let dashboardView = 'costos'; // 'costos' o 'ingresos'
+
+function setupKPIClicks() {
+    // Modificar los KPI cards para que sean clickeables
+    const kpiCards = document.querySelectorAll('.kpi-card');
+    if (kpiCards.length >= 4) {
+        // Ingresos Mensuales - muestra ingresos
+        kpiCards[1].style.cursor = 'pointer';
+        kpiCards[1].onclick = () => showRevenueView();
+        
+        // Costos Mensuales - muestra costos
+        kpiCards[2].style.cursor = 'pointer';
+        kpiCards[2].onclick = () => showCostsView();
+        
+        // Pacientes Activos - filtra pacientes activos
+        kpiCards[0].style.cursor = 'pointer';
+        kpiCards[0].onclick = () => showActivePatients();
+    }
+}
+
+function showRevenueView() {
+    dashboardView = 'ingresos';
+    showToast('Mostrando gráfico de Ingresos Mensuales', 'info');
+    updateDashboardChartsView();
+}
+
+function showCostsView() {
+    dashboardView = 'costos';
+    showToast('Mostrando gráfico de Distribución de Costos', 'info');
+    updateDashboardChartsView();
+}
+
+function updateDashboardChartsView() {
+    const activePatients = pacientes.filter(p => p.status === 'active').length;
+    const totalIncome = activePatients * (window.financialConfig?.pricePerPatient || 12000);
+    const totalCosts = calculateTotalCosts(totalIncome);
+    const c = window.financialConfig?.costs || {};
+    const contingency = totalIncome * ((c.contingencyPercent || 10) / 100);
+    
+    if (dashboardView === 'ingresos') {
+        // Mostrar gráfico de ingresos vs costos
+        if (charts.cost) {
+            charts.cost.data.datasets[0].data = [totalIncome, totalCosts];
+            charts.cost.data.labels = ['Ingresos Totales', 'Costos Totales'];
+            charts.cost.update();
+            document.querySelector('#costChart').parentElement.querySelector('.card-title').innerHTML = '<i class="fas fa-chart-line"></i> Ingresos vs Costos';
+        }
+    } else {
+        // Mostrar distribución de costos
+        if (charts.cost) {
+            charts.cost.data.datasets[0].data = [c.personal || 0, c.food || 0, c.medical || 0, c.utilities || 0, c.supplies || 0, c.insurance || 0, contingency];
+            charts.cost.data.labels = ['Personal','Alimentación','Médicos','Servicios','Insumos','Seguros','Contingencia'];
+            charts.cost.update();
+            document.querySelector('#costChart').parentElement.querySelector('.card-title').innerHTML = '<i class="fas fa-chart-pie"></i> Distribución de Costos';
+        }
+    }
+}
+
+function showActivePatients() {
+    document.getElementById('filterStatus').value = 'active';
+    loadPatients();
+    showPage('patients', document.querySelector('.nav-item[onclick*="patients"]'));
+    showToast('Mostrando solo pacientes activos', 'info');
+}
+
+    // Función para renderizar horario gráfico de empleados
+function renderHorarioGrafico(empleado) {
+    let horarioHtml = '<div class="employee-timeline">';
+    const dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+    const horario = empleado.horario || {};
+    
+    dias.forEach(dia => {
+        const horas = horario[dia] || 'Descanso';
+        const esDescanso = horas === 'Descanso';
+        horarioHtml += `
+            <div class="day-schedule" style="${esDescanso ? 'opacity:0.6;' : ''}">
+                <div class="day-name">${dia.substring(0,3)}</div>
+                <div class="day-hours">${horas}</div>
+            </div>
+        `;
+    });
+    
+    horarioHtml += '</div>';
+    
+    // Agregar horas extras
+    if (empleado.horas_extras) {
+        horarioHtml += `<div class="overtime-badge"><i class="fas fa-clock"></i> Horas extra: ${empleado.horas_extras} hrs este mes</div>`;
+    }
+    
+    return horarioHtml;
+}
+
+    // Dentro de renderPatients(), después de calcular horasActividad
+let actividadHtml = '';
+if (!p.horas_actividad && p.horas_actividad !== 0) {
+    actividadHtml = `<div class="alert-badge" style="margin-top:5px;"><i class="fas fa-bell"></i> Sin registro de actividad</div>`;
+} else if (horasActividad === 0) {
+    actividadHtml = `<div class="alert-badge"><i class="fas fa-exclamation-triangle"></i> Sin actividad hoy</div>`;
+}
+    
 
     async function openPacienteDashboard(pacienteId) {
         showLoading(true);
@@ -1797,29 +2090,65 @@
         document.getElementById('medicamentoModal').classList.remove('active');
     }
 
-    async function saveMedicamento() {
-        const nombre = document.getElementById('medicamentoNombre').value;
-        const presentacion = document.getElementById('medicamentoPresentacion').value;
-        const dosis = document.getElementById('medicamentoDosis').value;
+   async function saveMedicamento() {
+    const nombre = document.getElementById('medicamentoNombre').value;
+    const presentacion = document.getElementById('medicamentoPresentacion').value;
+    const dosis = document.getElementById('medicamentoDosis').value;
+    
+    if (!nombre) {
+        showToast('El nombre del medicamento es requerido', 'error');
+        return;
+    }
+    
+    try {
+        // Obtener lista actual de medicamentos para verificar duplicados
+        const medicamentosExistentes = await apiFetch('/api/medicamentos').catch(() => []);
         
-        if (!nombre) {
-            showToast('El nombre del medicamento es requerido', 'error');
+        // Verificar si ya existe
+        const existe = medicamentosExistentes.some(m => m.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existe) {
+            showToast('El medicamento ya existe en el catálogo', 'warning');
+            closeMedicamentoModal();
             return;
         }
         
+        await apiFetch('/api/medicamentos', {
+            method: 'POST',
+            body: JSON.stringify({ nombre, presentacion, dosis_habitual: dosis })
+        });
+        showToast('Medicamento registrado correctamente');
+        closeMedicamentoModal();
+        document.getElementById('medicamentoNombre').value = '';
+        document.getElementById('medicamentoPresentacion').value = '';
+        document.getElementById('medicamentoDosis').value = '';
+        await cargarMedicamentosSelect();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+    async function loadPatients() {
+    const search = document.getElementById('patientSearch')?.value || '';
+    const status = document.getElementById('filterStatus')?.value || '';
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    pacientes = await apiFetch(`/api/patients?${params}`);
+    
+    // Cargar adeudo para cada paciente
+    for (const p of pacientes) {
         try {
-            await apiFetch('/api/medicamentos', {
-                method: 'POST',
-                body: JSON.stringify({ nombre, presentacion, dosis_habitual: dosis })
-            });
-            showToast('Medicamento registrado correctamente');
-            closeMedicamentoModal();
-            await cargarMedicamentosSelect();
-        } catch (err) {
-            showToast(err.message, 'error');
+            const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
+            p.adeudo = adeudoData.adeudo;
+        } catch(e) {
+            p.adeudo = 0;
         }
     }
-
+    
+    renderPatients();
+    return pacientes;
+}
+    
     // ============================================================
     // PAGOS Y ADEUDOS
     // ============================================================
@@ -2102,17 +2431,17 @@
     // ============================================================
     // INICIALIZACIÓN
     // ============================================================
-    document.addEventListener('DOMContentLoaded', () => {
-        initCharts();
-        checkAuth();
-        if (isAdmin) {
-            refreshAll();
-            loadPatients();
-        } else {
-            // Cargar pacientes aunque no sea admin para mostrar lista
-            loadPatients();
-        }
-    });
+ document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    checkAuth();
+    setupKPIClicks();
+    if (isAdmin) {
+        refreshAll();
+        loadPatients();
+    } else {
+        loadPatients();
+    }
+});
 </script>
 </body>
 </html>
