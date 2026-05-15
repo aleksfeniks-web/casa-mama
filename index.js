@@ -11,6 +11,15 @@ const path = require('path');
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 
+// Importar rutas
+const nominaRoutes = require('./routes/nomina');
+const pagosRoutes = require('./routes/pagos');
+
+
+// Usar rutas
+app.use('/api/nomina', nominaRoutes);
+app.use('/api', pagosRoutes);  // las rutas de pagos están en /api/...
+
 // ─── Database ────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
