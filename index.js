@@ -26,7 +26,8 @@ const nominaRoutes = createNominaRoutes(pool);
 
 // pagos.js - si también necesita pool, modifícalo similar
 // Por ahora, asumimos que pagos.js usa su propio pool
-const pagosRoutes = require('./routes/pagos');
+const createPagosRoutes = require('./routes/pagos');
+const pagosRoutes = createPagosRoutes(pool);
 
 // ============================================================
 // 3. MIDDLEWARES
