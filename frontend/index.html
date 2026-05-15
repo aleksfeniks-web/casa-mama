@@ -707,7 +707,60 @@
 
 <!-- Modal: Servicio -->
 <div class="modal" id="servicioModal"><div class="modal-content"><div class="modal-header"><h2>Registrar Servicio</h2><button class="modal-close" onclick="closeServicioModal()">&times;</button></div><div class="modal-body"><div class="form-row"><div class="form-group"><label>Servicio</label><input type="text" id="servicioNombre" class="form-control" placeholder="Agua, Luz, Internet..."></div><div class="form-group"><label>Proveedor</label><input type="text" id="servicioProveedor" class="form-control"></div></div><div class="form-row"><div class="form-group"><label>Monto</label><input type="number" id="servicioMonto" class="form-control"></div><div class="form-group"><label>Vencimiento</label><input type="date" id="servicioVencimiento" class="form-control"></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeServicioModal()">Cancelar</button><button class="btn btn-primary" onclick="saveServicio()">Guardar</button></div></div></div>
-
+<div class="modal" id="medicamentoModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Nuevo Medicamento</h2>
+            <button class="modal-close" onclick="closeMedicamentoModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Nombre del Medicamento *</label>
+                <input type="text" id="medicamentoNombre" class="form-control" placeholder="Ej: Paracetamol">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Presentación</label>
+                <input type="text" id="medicamentoPresentacion" class="form-control" placeholder="Ej: Tableta 500mg">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Dosis Habitual</label>
+                <input type="text" id="medicamentoDosis" class="form-control" placeholder="Ej: 1 tableta cada 8 horas">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeMedicamentoModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveMedicamento()">Guardar Medicamento</button>
+        </div>
+    </div>
+</div>
+    <!-- Modal: Medicamento (Nuevo medicamento) -->
+<div class="modal" id="medicamentoModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Nuevo Medicamento</h2>
+            <button class="modal-close" onclick="closeMedicamentoModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Nombre del Medicamento *</label>
+                <input type="text" id="medicamentoNombre" class="form-control" placeholder="Ej: Paracetamol">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Presentación</label>
+                <input type="text" id="medicamentoPresentacion" class="form-control" placeholder="Ej: Tableta 500mg">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Dosis Habitual</label>
+                <input type="text" id="medicamentoDosis" class="form-control" placeholder="Ej: 1 tableta cada 8 horas">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeMedicamentoModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveMedicamento()">Guardar Medicamento</button>
+        </div>
+    </div>
+</div>
+    
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
