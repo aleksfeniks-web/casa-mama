@@ -1411,12 +1411,10 @@
     // FUNCIONES DE TARJETA
     // ============================================================
     
-    // Al hacer clic en la cabecera de la tarjeta, abrir dashboard completo
     function abrirDashboardPaciente(pacienteId) {
         openPacienteDashboard(pacienteId);
     }
 
-    // Mostrar historial rápido dentro de la tarjeta
     async function mostrarHistoriaRapida(pacienteId, event) {
         event.stopPropagation();
         
@@ -1465,7 +1463,6 @@
         }
     }
 
-    // Mostrar medicamentos rápidos dentro de la tarjeta
     async function mostrarMedicamentosRapidos(pacienteId, event) {
         event.stopPropagation();
         
@@ -1488,31 +1485,27 @@
             if (medicamentosPaciente.length === 0) {
                 innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
             } else {
-                
-
-// Después:
-innerDiv.innerHTML = `
-    <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-        ${medicamentosPaciente.map(m => `
-            <div class="med-item" style="margin:0;">
-                <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
-                <div class="med-name">${m.medicamento_nombre}</div>
-                <div class="med-dose">${m.dosis}</div>
-            </div>
-        `).join('')}
-    </div>
-    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosCompleto(${pacienteId}); event.stopPropagation();">
-        Ver medicamentos completo
-    </button>
-`;
+                innerDiv.innerHTML = `
+                    <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        ${medicamentosPaciente.map(m => `
+                            <div class="med-item" style="margin:0;">
+                                <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
+                                <div class="med-name">${m.medicamento_nombre}</div>
+                                <div class="med-dose">${m.dosis}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosCompleto(${pacienteId}); event.stopPropagation();">
+                        Ver medicamentos completo
+                    </button>
+                `;
             }
         } catch (err) {
             innerDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
         }
     }
 
-    // Funciones para ver completo (abren las páginas correspondientes)
     function verHistoriaCompleta(pacienteId) {
         verHistoriaPaciente(pacienteId);
     }
@@ -1593,7 +1586,6 @@ innerDiv.innerHTML = `
         if (status) params.append('status', status);
         pacientes = await apiFetch(`/api/patients?${params}`);
         
-        // Cargar adeudo para cada paciente
         for (const p of pacientes) {
             try {
                 const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
@@ -1877,8 +1869,7 @@ innerDiv.innerHTML = `
         document.getElementById('editQuickContact').value = p.contact || '';
         document.getElementById('editQuickCama').value = p.cama_asignada || '';
         document.getElementById('editQuickPlan').value = p.plan_id || '1';
-        
-        document.getElementById('editQuickModal').classList.add('active');
+                document.getElementById('editQuickModal').classList.add('active');
     }
 
     function closeEditQuickModal() {
@@ -1929,7 +1920,8 @@ innerDiv.innerHTML = `
             document.getElementById('pacienteInfo').innerHTML = `<p><strong>${paciente.name}</strong> | Edad: ${calcularEdad(paciente.birthdate)} años | Cama: ${paciente.cama_asignada || 'N/A'}</p>`;
             document.getElementById('historialList').innerHTML = historial.length === 0 ? '<p>Sin registros clínicos</p>' : 
                 `<table class="table"><thead><tr><th>Fecha</th><th>PA</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead><tbody>${
-                    historial.map(h => `<tr><td>${formatDate(h.fecha)}</td
+                    historial.map(h => `<tr>
+                        <td>${formatDate(h.fecha)}</td
                         <td>${h.presion_arterial || '-'}</td
                         <td>${h.frecuencia_cardiaca || '-'}</td
                         <td>${h.temperatura || '-'}°C</td
@@ -2013,11 +2005,11 @@ innerDiv.innerHTML = `
             document.getElementById('medicamentosList').innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">Sin medicamentos asignados</p>' :
                 `<table class="table"><thead><tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${
                     medicamentosPaciente.map(m => `<tr>
-                        <td>${m.medicamento_nombre}</td>
-                        <td>${m.dosis}</td>
-                        <td>${m.horario ? m.horario.join(', ') : ''}</td>
-                        <td><span class="badge ${m.activo ? 'badge-success' : 'badge-danger'}">${m.activo ? 'Activo' : 'Inactivo'}</span></td>
-                        <td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td>
+                        <td>${m.medicamento_nombre}</td
+                        <td>${m.dosis}</td
+                        <td>${m.horario ? m.horario.join(', ') : ''}</td
+                        <td><span class="badge ${m.activo ? 'badge-success' : 'badge-danger'}">${m.activo ? 'Activo' : 'Inactivo'}</span></td
+                        <td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td
                     </tr>`).join('')
                 }</tbody></table>`;
         } catch(err) { showToast(err.message, 'error'); }
@@ -2117,7 +2109,12 @@ innerDiv.innerHTML = `
             document.getElementById('adeudoInfo').innerHTML = `<div class="card"><h3>Adeudo Actual: ${formatCurrency(adeudo.adeudo)}</h3><p>Mensualidad: ${formatCurrency(adeudo.precio_mensual || 0)}</p></div>`;
             document.getElementById('pagosList').innerHTML = pagos.length === 0 ? '<p>Sin pagos registrados</p>' :
                 `<table class="table"><thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Recibo</th></tr></thead><tbody>${
-                    pagos.map(p => `<tr><td>${formatDate(p.fecha_pago)}</td><td>${formatCurrency(p.monto)}</td><td>${p.metodo_pago}</td><td>${p.recibo_pdf_url ? '<a href="#" onclick="descargarRecibo(\''+p.recibo_pdf_url+'\')">Ver PDF</a>' : '-'}</td></tr>`).join('')
+                    pagos.map(p => `<tr>
+                        <td>${formatDate(p.fecha_pago)}</td
+                        <td>${formatCurrency(p.monto)}</td
+                        <td>${p.metodo_pago}</td
+                        <td>${p.recibo_pdf_url ? '<a href="#" onclick="descargarRecibo(\''+p.recibo_pdf_url+'\')">Ver PDF</a>' : '-'}</td
+                    </tr>`).join('')
                 }</tbody></table>`;
         } catch(err) { showToast(err.message, 'error'); }
     }
@@ -2165,7 +2162,12 @@ innerDiv.innerHTML = `
         try {
             empleados = await apiFetch('/api/nomina/empleados');
             const tbody = document.querySelector('#empleadosTable tbody');
-            if (tbody) tbody.innerHTML = empleados.map(e => `<tr><td>${e.nombre}</td><td>${e.puesto}</td><td>${formatCurrency(e.salario_base)}</td><td><button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">Eliminar</button></td></tr>`).join('');
+            if (tbody) tbody.innerHTML = empleados.map(e => `<tr>
+                <td>${e.nombre}</td
+                <td>${e.puesto}</td
+                <td>${formatCurrency(e.salario_base)}</td
+                <td><button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">Eliminar</button></td
+            </tr>`).join('');
         } catch(e) { console.error(e); }
     }
 
@@ -2173,7 +2175,13 @@ innerDiv.innerHTML = `
         try {
             const nominas = await apiFetch('/api/nomina');
             const tbody = document.querySelector('#nominasTable tbody');
-            if (tbody) tbody.innerHTML = nominas.map(n => `<tr><td>${formatDate(n.periodo)}</td><td>${n.empleado_nombre}</td><td>${formatCurrency(n.total)}</td><td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td><td><button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})">Pagar</button></td></tr>`).join('');
+            if (tbody) tbody.innerHTML = nominas.map(n => `<td>
+                <td>${formatDate(n.periodo)}</td
+                <td>${n.empleado_nombre}</td
+                <td>${formatCurrency(n.total)}</td
+                <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td
+                <td><button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})">Pagar</button></td
+            </tr>`).join('');
         } catch(e) { console.error(e); }
     }
 
@@ -2194,9 +2202,6 @@ innerDiv.innerHTML = `
         } catch(err) { showToast(err.message, 'error'); }
     }
 
-    function openEmpleadoModal() {
-        document.getElementById('
-                    
     function openEmpleadoModal() {
         document.getElementById('empleadoNombre').value = '';
         document.getElementById('empleadoPuesto').value = '';
@@ -2243,7 +2248,7 @@ innerDiv.innerHTML = `
             const servicios = await apiFetch('/api/servicios');
             const tbody = document.querySelector('#serviciosTable tbody');
             if (tbody) tbody.innerHTML = servicios.map(s => `<tr>
-                <td>${s.nombre}</td>
+                <td>${s.nombre}</td
                 <td>${s.proveedor || '-'}</td
                 <td>${formatCurrency(s.monto)}</td
                 <td>${formatDate(s.fecha_vencimiento)}</td
@@ -2289,7 +2294,7 @@ innerDiv.innerHTML = `
     }
 
     // ============================================================
-    // CONFIGURACIÓN - PLANES (Solo 3 planes)
+    // CONFIGURACIÓN - PLANES
     // ============================================================
     let planesData = [
         { id: 1, nombre: "Básico", precio_mensual: 8000, descripcion: "Cuidados básicos y alimentación" },
@@ -2330,7 +2335,7 @@ innerDiv.innerHTML = `
     }
 
     // ============================================================
-    // CONFIGURACIÓN - COSTOS OPERATIVOS
+    // CONFIGURACIÓN - COSTOS
     // ============================================================
     async function loadCostos() {
         const config = await apiFetch('/api/config');
@@ -2387,32 +2392,6 @@ innerDiv.innerHTML = `
         } catch(err) { showToast(err.message, 'error'); }
     }
 
-    // Función para renderizar horario gráfico de empleados
-    function renderHorarioGrafico(empleado) {
-        let horarioHtml = '<div class="employee-timeline">';
-        const dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
-        const horario = empleado.horario || {};
-        
-        dias.forEach(dia => {
-            const horas = horario[dia] || 'Descanso';
-            const esDescanso = horas === 'Descanso';
-            horarioHtml += `
-                <div class="day-schedule" style="${esDescanso ? 'opacity:0.6;' : ''}">
-                    <div class="day-name">${dia.substring(0,3)}</div>
-                    <div class="day-hours">${horas}</div>
-                </div>
-            `;
-        });
-        
-        horarioHtml += '</div>';
-        
-        if (empleado.horas_extras) {
-            horarioHtml += `<div class="overtime-badge"><i class="fas fa-clock"></i> Horas extra: ${empleado.horas_extras} hrs este mes</div>`;
-        }
-        
-        return horarioHtml;
-    }
-
     // ============================================================
     // INICIALIZACIÓN
     // ============================================================
@@ -2428,6 +2407,8 @@ innerDiv.innerHTML = `
         }
     });
 </script>
+
+        
 </body>
 </html>
     
