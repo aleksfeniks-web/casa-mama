@@ -707,15 +707,16 @@
 
 <!-- Modal: Servicio -->
 <div class="modal" id="servicioModal"><div class="modal-content"><div class="modal-header"><h2>Registrar Servicio</h2><button class="modal-close" onclick="closeServicioModal()">&times;</button></div><div class="modal-body"><div class="form-row"><div class="form-group"><label>Servicio</label><input type="text" id="servicioNombre" class="form-control" placeholder="Agua, Luz, Internet..."></div><div class="form-group"><label>Proveedor</label><input type="text" id="servicioProveedor" class="form-control"></div></div><div class="form-row"><div class="form-group"><label>Monto</label><input type="number" id="servicioMonto" class="form-control"></div><div class="form-group"><label>Vencimiento</label><input type="date" id="servicioVencimiento" class="form-control"></div></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeServicioModal()">Cancelar</button><button class="btn btn-primary" onclick="saveServicio()">Guardar</button></div></div></div>
+<!-- Modal: Medicamento -->
 <div class="modal" id="medicamentoModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 class="modal-title">Nuevo Medicamento</h2>
+            <h2 class="modal-title">Agregar Medicamento</h2>
             <button class="modal-close" onclick="closeMedicamentoModal()">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label class="form-label">Nombre del Medicamento *</label>
+                <label class="form-label">Nombre del Medicamento</label>
                 <input type="text" id="medicamentoNombre" class="form-control" placeholder="Ej: Paracetamol">
             </div>
             <div class="form-group">
@@ -724,39 +725,56 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Dosis Habitual</label>
-                <input type="text" id="medicamentoDosis" class="form-control" placeholder="Ej: 1 tableta cada 8 horas">
+                <input type="text" id="medicamentoDosis" class="form-control" placeholder="Ej: 1 tableta cada 8h">
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeMedicamentoModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveMedicamento()">Guardar Medicamento</button>
+            <button class="btn btn-primary" onclick="saveMedicamento()">Guardar</button>
         </div>
     </div>
 </div>
-    <!-- Modal: Medicamento (Nuevo medicamento) -->
-<div class="modal" id="medicamentoModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title">Nuevo Medicamento</h2>
-            <button class="modal-close" onclick="closeMedicamentoModal()">&times;</button>
+
+<!-- Modal: Dashboard del Paciente (NUEVO) -->
+<div class="modal" id="pacienteDashboardModal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">
+            <h2 class="modal-title" id="dashboardPacienteNombre">Paciente</h2>
+            <button class="modal-close" onclick="closePacienteDashboard()">&times;</button>
         </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label class="form-label">Nombre del Medicamento *</label>
-                <input type="text" id="medicamentoNombre" class="form-control" placeholder="Ej: Paracetamol">
+        <div class="modal-body" id="dashboardPacienteBody">
+            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                <!-- Foto y datos básicos -->
+                <div style="flex: 1; min-width: 250px; text-align: center;">
+                    <div id="dashboardAvatar" style="width: 120px; height: 120px; border-radius: 60px; background: linear-gradient(135deg, var(--primary), var(--secondary)); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 3em; color: white;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <h3 id="dashboardNombre"></h3>
+                    <p id="dashboardEdad"></p>
+                    <p><i class="fas fa-phone"></i> <span id="dashboardTelefono"></span></p>
+                    <p><i class="fas fa-user-friends"></i> <span id="dashboardContacto"></span></p>
+                    <p><i class="fas fa-bed"></i> Cama: <span id="dashboardCama"></span></p>
+                    <p><i class="fas fa-tag"></i> Plan: <span id="dashboardPlan"></span></p>
+                </div>
+                <!-- Medicamentos -->
+                <div style="flex: 2;">
+                    <div class="card">
+                        <h4><i class="fas fa-pills"></i> Medicamentos y Horarios</h4>
+                        <div id="dashboardMedicamentos"></div>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Presentación</label>
-                <input type="text" id="medicamentoPresentacion" class="form-control" placeholder="Ej: Tableta 500mg">
+            <div class="card" style="margin-top: 16px;">
+                <h4><i class="fas fa-notes-medical"></i> Condiciones de Salud</h4>
+                <p id="dashboardCondiciones"></p>
             </div>
-            <div class="form-group">
-                <label class="form-label">Dosis Habitual</label>
-                <input type="text" id="medicamentoDosis" class="form-control" placeholder="Ej: 1 tableta cada 8 horas">
+            <div class="card">
+                <h4><i class="fas fa-chart-line"></i> Signos Vitales Recientes</h4>
+                <div id="dashboardSignos"></div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeMedicamentoModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveMedicamento()">Guardar Medicamento</button>
+            <button class="btn btn-secondary" onclick="closePacienteDashboard()">Cerrar</button>
         </div>
     </div>
 </div>
