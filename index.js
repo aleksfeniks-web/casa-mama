@@ -69,6 +69,7 @@ const initDB = async () => {
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://casa-mama.fly.dev',
   'http://localhost:3000',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
