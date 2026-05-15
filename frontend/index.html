@@ -1488,14 +1488,7 @@
             if (medicamentosPaciente.length === 0) {
                 innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
             } else {
-                innerDiv.innerHTML = `
-    <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-    <div style="display:flex; flex-direction:column; gap:10px;">  // ← ELIMINA ESTA LÍNEA DUPLICADA
-        ${medicamentosPaciente.map(m => ...)}
-    </div>
-    ...
-`;
+                
 
 // Después:
 innerDiv.innerHTML = `
