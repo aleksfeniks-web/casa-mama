@@ -1170,7 +1170,6 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
-
 <script>
     // ============================================================
     // CONFIGURACIÓN
@@ -1218,11 +1217,13 @@
     }
 
     function showLoading(show) {
-        document.getElementById('loadingOverlay').classList.toggle('active', show);
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.toggle('active', show);
     }
 
     function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('active');
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.toggle('active');
     }
 
     function formatCurrency(amount) {
@@ -1313,17 +1314,29 @@
             await loadPatients();
             await loadFinancialConfig();
             updateDashboard();
-        } catch (err) { showToast(err.message, 'error'); }
+        } catch (err) { 
+            console.error('Error en refreshAll:', err);
+            showToast(err.message, 'error'); 
+        }
         finally { showLoading(false); }
     }
 
     async function loadFinancialConfig() {
-        const config = await apiFetch('/api/config');
-        window.financialConfig = {
-            pricePerPatient: config.pricePerPatient || 12000,
-            maxCapacity: config.maxCapacity || 12,
-            costs: config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
-        };
+        try {
+            const config = await apiFetch('/api/config');
+            window.financialConfig = {
+                pricePerPatient: config.pricePerPatient || 12000,
+                maxCapacity: config.maxCapacity || 12,
+                costs: config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
+            };
+        } catch(e) {
+            console.error('Error cargando config financiera:', e);
+            window.financialConfig = {
+                pricePerPatient: 12000,
+                maxCapacity: 12,
+                costs: { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
+            };
+        }
     }
 
     function calculateTotalCosts(income) {
@@ -1355,12 +1368,17 @@
         const totalCosts = calculateTotalCosts(totalIncome);
         const netProfit = totalIncome - totalCosts;
         
-        document.getElementById('totalPatients').textContent = activePatients;
-        document.getElementById('monthlyIncome').textContent = formatCurrency(totalIncome);
-        document.getElementById('monthlyCosts').textContent = formatCurrency(totalCosts);
+        const totalEl = document.getElementById('totalPatients');
+        if (totalEl) totalEl.textContent = activePatients;
+        const incomeEl = document.getElementById('monthlyIncome');
+        if (incomeEl) incomeEl.textContent = formatCurrency(totalIncome);
+        const costsEl = document.getElementById('monthlyCosts');
+        if (costsEl) costsEl.textContent = formatCurrency(totalCosts);
         const profitEl = document.getElementById('netProfit');
-        profitEl.textContent = formatCurrency(netProfit);
-        profitEl.style.color = netProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+        if (profitEl) {
+            profitEl.textContent = formatCurrency(netProfit);
+            profitEl.style.color = netProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+        }
         
         updateCharts(activePatients);
     }
@@ -1569,7 +1587,8 @@
     }
 
     function showActivePatients() {
-        document.getElementById('filterStatus').value = 'active';
+        const filterStatus = document.getElementById('filterStatus');
+        if (filterStatus) filterStatus.value = 'active';
         loadPatients();
         showPage('patients', document.querySelector('.nav-item[onclick*="patients"]'));
         showToast('Mostrando solo pacientes activos', 'info');
@@ -1584,7 +1603,13 @@
         const params = new URLSearchParams();
         if (search) params.append('search', search);
         if (status) params.append('status', status);
-        pacientes = await apiFetch(`/api/patients?${params}`);
+        
+        try {
+            pacientes = await apiFetch(`/api/patients?${params}`);
+        } catch(e) {
+            console.error('Error cargando pacientes:', e);
+            pacientes = [];
+        }
         
         for (const p of pacientes) {
             try {
@@ -1693,61 +1718,76 @@
             else if (paciente.plan_id == 2) planNombre = 'Intermedio - $12,000';
             else if (paciente.plan_id == 3) planNombre = 'Más - $16,000';
             
-            document.getElementById('dashboardPacienteNombre').textContent = paciente.name || 'Paciente';
-            document.getElementById('dashboardNombre').textContent = paciente.name || 'Sin nombre';
-            document.getElementById('dashboardEdad').innerHTML = `<i class="fas fa-calendar-alt"></i> ${calcularEdad(paciente.birthdate)} años`;
-            document.getElementById('dashboardTelefono').textContent = paciente.phone || 'N/A';
-            document.getElementById('dashboardContacto').textContent = `${paciente.contact || 'N/A'} - ${paciente.contact_phone || ''}`;
-            document.getElementById('dashboardCama').textContent = paciente.cama_asignada || 'No asignada';
-            document.getElementById('dashboardPlan').textContent = planNombre;
-            document.getElementById('dashboardCondiciones').textContent = paciente.condiciones_cronicas || 'Sin condiciones registradas';
+            const nombreEl = document.getElementById('dashboardPacienteNombre');
+            if (nombreEl) nombreEl.textContent = paciente.name || 'Paciente';
+            const nombre2El = document.getElementById('dashboardNombre');
+            if (nombre2El) nombre2El.textContent = paciente.name || 'Sin nombre';
+            const edadEl = document.getElementById('dashboardEdad');
+            if (edadEl) edadEl.innerHTML = `<i class="fas fa-calendar-alt"></i> ${calcularEdad(paciente.birthdate)} años`;
+            const telefonoEl = document.getElementById('dashboardTelefono');
+            if (telefonoEl) telefonoEl.textContent = paciente.phone || 'N/A';
+            const contactoEl = document.getElementById('dashboardContacto');
+            if (contactoEl) contactoEl.textContent = `${paciente.contact || 'N/A'} - ${paciente.contact_phone || ''}`;
+            const camaEl = document.getElementById('dashboardCama');
+            if (camaEl) camaEl.textContent = paciente.cama_asignada || 'No asignada';
+            const planEl = document.getElementById('dashboardPlan');
+            if (planEl) planEl.textContent = planNombre;
+            const condicionesEl = document.getElementById('dashboardCondiciones');
+            if (condicionesEl) condicionesEl.textContent = paciente.condiciones_cronicas || 'Sin condiciones registradas';
             
             const avatarDiv = document.getElementById('dashboardAvatar');
-            const iniciales = paciente.name ? paciente.name.charAt(0).toUpperCase() : 'U';
-            avatarDiv.innerHTML = `<span style="font-size: 2em; font-weight: 600;">${iniciales}</span>`;
+            if (avatarDiv) {
+                const iniciales = paciente.name ? paciente.name.charAt(0).toUpperCase() : 'U';
+                avatarDiv.innerHTML = `<span style="font-size: 2em; font-weight: 600;">${iniciales}</span>`;
+            }
             
             const medicamentosDiv = document.getElementById('dashboardMedicamentos');
-            if (medicamentosPaciente.length === 0) {
-                medicamentosDiv.innerHTML = '<p class="empty-state">No hay medicamentos asignados</p>';
-            } else {
-                medicamentosDiv.innerHTML = `
-                    <div class="med-timeline">
-                        ${medicamentosPaciente.map(m => `
-                            <div class="med-item">
-                                <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
-                                <div class="med-name">${m.medicamento_nombre || 'Medicamento'}</div>
-                                <div class="med-dose">${m.dosis || 'Dosis no especificada'}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+            if (medicamentosDiv) {
+                if (medicamentosPaciente.length === 0) {
+                    medicamentosDiv.innerHTML = '<p class="empty-state">No hay medicamentos asignados</p>';
+                } else {
+                    medicamentosDiv.innerHTML = `
+                        <div class="med-timeline">
+                            ${medicamentosPaciente.map(m => `
+                                <div class="med-item">
+                                    <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
+                                    <div class="med-name">${m.medicamento_nombre || 'Medicamento'}</div>
+                                    <div class="med-dose">${m.dosis || 'Dosis no especificada'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
             }
             
             const signosDiv = document.getElementById('dashboardSignos');
-            if (historial.length === 0) {
-                signosDiv.innerHTML = '<p class="empty-state">No hay registros de signos vitales</p>';
-            } else {
-                signosDiv.innerHTML = `
-                    <table class="table">
-                        <thead>
-                            <tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temperatura</th><th>Diagnóstico</th></tr>
-                        </thead>
-                        <tbody>
-                            ${historial.slice(0,5).map(h => `
-                                <tr>
-                                    <td>${formatDate(h.fecha)}</td
-                                    <td>${h.presion_arterial || '-'}</td
-                                    <td>${h.frecuencia_cardiaca || '-'} lpm</td
-                                    <td>${h.temperatura || '-'}°C</td
-                                    <td>${h.diagnostico?.substring(0, 40) || '-'}</td
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
+            if (signosDiv) {
+                if (historial.length === 0) {
+                    signosDiv.innerHTML = '<p class="empty-state">No hay registros de signos vitales</p>';
+                } else {
+                    signosDiv.innerHTML = `
+                        <table class="table">
+                            <thead>
+                                <tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temperatura</th><th>Diagnóstico</th></tr>
+                            </thead>
+                            <tbody>
+                                ${historial.slice(0,5).map(h => `
+                                    <tr>
+                                        <td>${formatDate(h.fecha)}</td
+                                        <td>${h.presion_arterial || '-'}</td
+                                        <td>${h.frecuencia_cardiaca || '-'} lpm</td
+                                        <td>${h.temperatura || '-'}°C</td
+                                        <td>${h.diagnostico?.substring(0, 40) || '-'}</td
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
             }
             
-            document.getElementById('pacienteDashboardModal').classList.add('active');
+            const modal = document.getElementById('pacienteDashboardModal');
+            if (modal) modal.classList.add('active');
         } catch (err) {
             showToast(err.message, 'error');
         } finally {
@@ -1756,7 +1796,8 @@
     }
 
     function closePacienteDashboard() {
-        document.getElementById('pacienteDashboardModal').classList.remove('active');
+        const modal = document.getElementById('pacienteDashboardModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function verHistoriaPaciente(id) {
@@ -1780,57 +1821,70 @@
     }
 
     function openPatientModal(patientId = null) {
-        document.getElementById('patientId').value = '';
-        document.getElementById('patientName').value = '';
-        document.getElementById('patientBirthdate').value = '';
-        document.getElementById('patientCURP').value = '';
-        document.getElementById('patientPhone').value = '';
-        document.getElementById('patientContact').value = '';
-        document.getElementById('patientContactPhone').value = '';
-        document.getElementById('patientCama').value = '';
-        document.getElementById('patientAlergias').value = '';
-        document.getElementById('patientCondiciones').value = '';
-        document.getElementById('modalTitle').textContent = 'Nuevo Paciente';
+        const idField = document.getElementById('patientId');
+        const nameField = document.getElementById('patientName');
+        const birthField = document.getElementById('patientBirthdate');
+        const curpField = document.getElementById('patientCURP');
+        const phoneField = document.getElementById('patientPhone');
+        const contactField = document.getElementById('patientContact');
+        const contactPhoneField = document.getElementById('patientContactPhone');
+        const camaField = document.getElementById('patientCama');
+        const alergiasField = document.getElementById('patientAlergias');
+        const condicionesField = document.getElementById('patientCondiciones');
+        const titleField = document.getElementById('modalTitle');
+        
+        if (idField) idField.value = '';
+        if (nameField) nameField.value = '';
+        if (birthField) birthField.value = '';
+        if (curpField) curpField.value = '';
+        if (phoneField) phoneField.value = '';
+        if (contactField) contactField.value = '';
+        if (contactPhoneField) contactPhoneField.value = '';
+        if (camaField) camaField.value = '';
+        if (alergiasField) alergiasField.value = '';
+        if (condicionesField) condicionesField.value = '';
+        if (titleField) titleField.textContent = 'Nuevo Paciente';
         
         if (patientId) {
             const p = pacientes.find(x => x.id === patientId);
             if (p) {
-                document.getElementById('patientId').value = p.id;
-                document.getElementById('patientName').value = p.name || '';
-                document.getElementById('patientBirthdate').value = p.birthdate ? p.birthdate.split('T')[0] : '';
-                document.getElementById('patientCURP').value = p.curp || '';
-                document.getElementById('patientPhone').value = p.phone || '';
-                document.getElementById('patientContact').value = p.contact || '';
-                document.getElementById('patientContactPhone').value = p.contact_phone || '';
-                document.getElementById('patientCama').value = p.cama_asignada || '';
-                document.getElementById('patientAlergias').value = p.alergias || '';
-                document.getElementById('patientCondiciones').value = p.condiciones_cronicas || '';
-                document.getElementById('modalTitle').textContent = 'Editar Paciente';
-                if (p.plan_id) {
-                    document.getElementById('patientPlan').value = p.plan_id;
-                }
+                if (idField) idField.value = p.id;
+                if (nameField) nameField.value = p.name || '';
+                if (birthField) birthField.value = p.birthdate ? p.birthdate.split('T')[0] : '';
+                if (curpField) curpField.value = p.curp || '';
+                if (phoneField) phoneField.value = p.phone || '';
+                if (contactField) contactField.value = p.contact || '';
+                if (contactPhoneField) contactPhoneField.value = p.contact_phone || '';
+                if (camaField) camaField.value = p.cama_asignada || '';
+                if (alergiasField) alergiasField.value = p.alergias || '';
+                if (condicionesField) condicionesField.value = p.condiciones_cronicas || '';
+                if (titleField) titleField.textContent = 'Editar Paciente';
+                const planSelect = document.getElementById('patientPlan');
+                if (planSelect && p.plan_id) planSelect.value = p.plan_id;
             }
         }
-        document.getElementById('patientModal').classList.add('active');
+        const modal = document.getElementById('patientModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closePatientModal() {
-        document.getElementById('patientModal').classList.remove('active');
+        const modal = document.getElementById('patientModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function savePatient() {
-        const id = document.getElementById('patientId').value;
+        const id = document.getElementById('patientId')?.value;
         const payload = {
-            name: document.getElementById('patientName').value,
-            birthdate: document.getElementById('patientBirthdate').value || null,
-            curp: document.getElementById('patientCURP').value || null,
-            phone: document.getElementById('patientPhone').value || null,
-            contact: document.getElementById('patientContact').value || null,
-            contact_phone: document.getElementById('patientContactPhone').value || null,
-            cama_asignada: document.getElementById('patientCama').value || null,
-            alergias: document.getElementById('patientAlergias').value || null,
-            condiciones_cronicas: document.getElementById('patientCondiciones').value || null,
-            plan_id: document.getElementById('patientPlan').value || null
+            name: document.getElementById('patientName')?.value || '',
+            birthdate: document.getElementById('patientBirthdate')?.value || null,
+            curp: document.getElementById('patientCURP')?.value || null,
+            phone: document.getElementById('patientPhone')?.value || null,
+            contact: document.getElementById('patientContact')?.value || null,
+            contact_phone: document.getElementById('patientContactPhone')?.value || null,
+            cama_asignada: document.getElementById('patientCama')?.value || null,
+            alergias: document.getElementById('patientAlergias')?.value || null,
+            condiciones_cronicas: document.getElementById('patientCondiciones')?.value || null,
+            plan_id: document.getElementById('patientPlan')?.value || null
         };
         try {
             if (id) {
@@ -1863,27 +1917,37 @@
         const p = pacientes.find(x => x.id === pacienteId);
         if (!p) return;
         
-        document.getElementById('editQuickId').value = p.id;
-        document.getElementById('editQuickName').value = p.name || '';
-        document.getElementById('editQuickPhone').value = p.phone || '';
-        document.getElementById('editQuickContact').value = p.contact || '';
-        document.getElementById('editQuickCama').value = p.cama_asignada || '';
-        document.getElementById('editQuickPlan').value = p.plan_id || '1';
-                document.getElementById('editQuickModal').classList.add('active');
+        const idField = document.getElementById('editQuickId');
+        const nameField = document.getElementById('editQuickName');
+        const phoneField = document.getElementById('editQuickPhone');
+        const contactField = document.getElementById('editQuickContact');
+        const camaField = document.getElementById('editQuickCama');
+        const planField = document.getElementById('editQuickPlan');
+        
+        if (idField) idField.value = p.id;
+        if (nameField) nameField.value = p.name || '';
+        if (phoneField) phoneField.value = p.phone || '';
+        if (contactField) contactField.value = p.contact || '';
+        if (camaField) camaField.value = p.cama_asignada || '';
+        if (planField) planField.value = p.plan_id || '1';
+        
+        const modal = document.getElementById('editQuickModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closeEditQuickModal() {
-        document.getElementById('editQuickModal').classList.remove('active');
+        const modal = document.getElementById('editQuickModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function saveEditQuick() {
-        const id = document.getElementById('editQuickId').value;
+        const id = document.getElementById('editQuickId')?.value;
         const payload = {
-            name: document.getElementById('editQuickName').value,
-            phone: document.getElementById('editQuickPhone').value,
-            contact: document.getElementById('editQuickContact').value,
-            cama_asignada: document.getElementById('editQuickCama').value,
-            plan_id: parseInt(document.getElementById('editQuickPlan').value)
+            name: document.getElementById('editQuickName')?.value || '',
+            phone: document.getElementById('editQuickPhone')?.value || '',
+            contact: document.getElementById('editQuickContact')?.value || '',
+            cama_asignada: document.getElementById('editQuickCama')?.value || '',
+            plan_id: parseInt(document.getElementById('editQuickPlan')?.value || '1')
         };
         
         try {
@@ -1901,75 +1965,91 @@
     // HISTORIA CLÍNICA
     // ============================================================
     async function cargarPacientesSelects() {
-        const pacientesList = await apiFetch('/api/patients');
-        const options = '<option value="">-- Seleccione --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-        const selects = ['historiaPacienteSelect', 'historiaPaciente', 'asignarPaciente', 'verMedicamentosPaciente', 'pagosPacienteSelect', 'pagoPaciente'];
-        selects.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = options;
-        });
+        try {
+            const pacientesList = await apiFetch('/api/patients');
+            const options = '<option value="">-- Seleccione --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            const selects = ['historiaPacienteSelect', 'historiaPaciente', 'asignarPaciente', 'verMedicamentosPaciente', 'pagosPacienteSelect', 'pagoPaciente'];
+            selects.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = options;
+            });
+        } catch(e) {
+            console.error('Error cargando selects de pacientes:', e);
+        }
     }
 
     async function loadHistoriaPaciente() {
-        const pacienteId = document.getElementById('historiaPacienteSelect').value;
-        if (!pacienteId) { document.getElementById('historiaContent').style.display = 'none'; return; }
+        const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
+        if (!pacienteId) { 
+            const content = document.getElementById('historiaContent');
+            if (content) content.style.display = 'none';
+            return; 
+        }
         showLoading(true);
         try {
             const paciente = await apiFetch(`/api/patients/${pacienteId}`);
             const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
-            document.getElementById('pacienteInfo').innerHTML = `<p><strong>${paciente.name}</strong> | Edad: ${calcularEdad(paciente.birthdate)} años | Cama: ${paciente.cama_asignada || 'N/A'}</p>`;
-            document.getElementById('historialList').innerHTML = historial.length === 0 ? '<p>Sin registros clínicos</p>' : 
-                `<table class="table"><thead><tr><th>Fecha</th><th>PA</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead><tbody>${
-                    historial.map(h => `<tr>
-                        <td>${formatDate(h.fecha)}</td
-                        <td>${h.presion_arterial || '-'}</td
-                        <td>${h.frecuencia_cardiaca || '-'}</td
-                        <td>${h.temperatura || '-'}°C</td
-                        <td>${h.diagnostico?.substring(0,50) || '-'}</td
-                    </tr>`).join('')
-                }</tbody></table>`;
-            document.getElementById('historiaContent').style.display = 'block';
+            const infoDiv = document.getElementById('pacienteInfo');
+            if (infoDiv) {
+                infoDiv.innerHTML = `<p><strong>${paciente.name}</strong> | Edad: ${calcularEdad(paciente.birthdate)} años | Cama: ${paciente.cama_asignada || 'N/A'}</p>`;
+            }
+            const listDiv = document.getElementById('historialList');
+            if (listDiv) {
+                listDiv.innerHTML = historial.length === 0 ? '<p>Sin registros clínicos</p>' : 
+                    `<table class="table"><thead><tr><th>Fecha</th><th>PA</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead><tbody>${
+                        historial.map(h => `<tr>
+                            <td>${formatDate(h.fecha)}</td
+                            <td>${h.presion_arterial || '-'}</td
+                            <td>${h.frecuencia_cardiaca || '-'}</td
+                            <td>${h.temperatura || '-'}°C</td
+                            <td>${h.diagnostico?.substring(0,50) || '-'}</td
+                        </tr>`).join('')
+                    }</tbody></table>`;
+            }
+            const contentDiv = document.getElementById('historiaContent');
+            if (contentDiv) contentDiv.style.display = 'block';
         } catch(err) { showToast(err.message, 'error'); }
         finally { showLoading(false); }
     }
 
     function openHistoriaModal() {
         cargarPacientesSelects();
-        document.getElementById('historiaPA').value = '';
-        document.getElementById('historiaFC').value = '';
-        document.getElementById('historiaTemp').value = '';
-        document.getElementById('historiaSat').value = '';
-        document.getElementById('historiaSintomas').value = '';
-        document.getElementById('historiaDiagnostico').value = '';
-        document.getElementById('historiaTratamiento').value = '';
-        document.getElementById('historiaModal').classList.add('active');
+        const fields = ['historiaPA', 'historiaFC', 'historiaTemp', 'historiaSat', 'historiaSintomas', 'historiaDiagnostico', 'historiaTratamiento'];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.value = '';
+        });
+        const modal = document.getElementById('historiaModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closeHistoriaModal() {
-        document.getElementById('historiaModal').classList.remove('active');
+        const modal = document.getElementById('historiaModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function saveHistoria() {
-        const pacienteId = document.getElementById('historiaPaciente').value;
+        const pacienteId = document.getElementById('historiaPaciente')?.value;
         if (!pacienteId) { showToast('Seleccione un paciente', 'error'); return; }
         const payload = {
-            presion_arterial: document.getElementById('historiaPA').value,
-            frecuencia_cardiaca: document.getElementById('historiaFC').value,
-            temperatura: document.getElementById('historiaTemp').value,
-            sintomas: document.getElementById('historiaSintomas').value,
-            diagnostico: document.getElementById('historiaDiagnostico').value,
-            tratamiento: document.getElementById('historiaTratamiento').value
+            presion_arterial: document.getElementById('historiaPA')?.value || '',
+            frecuencia_cardiaca: document.getElementById('historiaFC')?.value || null,
+            temperatura: document.getElementById('historiaTemp')?.value || null,
+            sintomas: document.getElementById('historiaSintomas')?.value || '',
+            diagnostico: document.getElementById('historiaDiagnostico')?.value || '',
+            tratamiento: document.getElementById('historiaTratamiento')?.value || ''
         };
         try {
             await apiFetch(`/api/pacientes/${pacienteId}/historia`, { method: 'POST', body: JSON.stringify(payload) });
             showToast('Nota clínica guardada');
             closeHistoriaModal();
-            if (document.getElementById('historiaPacienteSelect').value == pacienteId) loadHistoriaPaciente();
+            const select = document.getElementById('historiaPacienteSelect');
+            if (select && select.value == pacienteId) loadHistoriaPaciente();
         } catch(err) { showToast(err.message, 'error'); }
     }
 
     // ============================================================
-    // MEDICAMENTOS
+    // MEDICAMENTOS (funciones básicas)
     // ============================================================
     async function cargarMedicamentosSelect() {
         try {
@@ -1978,11 +2058,7 @@
                 medicamentosApi = await apiFetch('/api/medicamentos');
             } catch(e) { console.log('Usando lista local de medicamentos'); }
             
-            if (medicamentosApi.length > 0) {
-                medicamentosLista = medicamentosApi;
-            } else {
-                medicamentosLista = medicamentosGeriatria;
-            }
+            medicamentosLista = medicamentosApi.length > 0 ? medicamentosApi : medicamentosGeriatria;
             
             const select = document.getElementById('asignarMedicamento');
             if (select) {
@@ -1992,38 +2068,47 @@
     }
 
     async function cargarMedicamentosPorPacienteSelect() {
-        const pacientesList = await apiFetch('/api/patients');
-        const select = document.getElementById('verMedicamentosPaciente');
-        if (select) select.innerHTML = '<option value="">-- Seleccione paciente --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        try {
+            const pacientesList = await apiFetch('/api/patients');
+            const select = document.getElementById('verMedicamentosPaciente');
+            if (select) select.innerHTML = '<option value="">-- Seleccione paciente --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        } catch(e) { console.error(e); }
     }
 
     async function cargarMedicamentosPaciente() {
-        const pacienteId = document.getElementById('verMedicamentosPaciente').value;
-        if (!pacienteId) { document.getElementById('medicamentosList').innerHTML = ''; return; }
+        const pacienteId = document.getElementById('verMedicamentosPaciente')?.value;
+        if (!pacienteId) { 
+            const listDiv = document.getElementById('medicamentosList');
+            if (listDiv) listDiv.innerHTML = '';
+            return; 
+        }
         try {
             const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
-            document.getElementById('medicamentosList').innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">Sin medicamentos asignados</p>' :
-                `<table class="table"><thead><tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${
-                    medicamentosPaciente.map(m => `<tr>
-                        <td>${m.medicamento_nombre}</td
-                        <td>${m.dosis}</td
-                        <td>${m.horario ? m.horario.join(', ') : ''}</td
-                        <td><span class="badge ${m.activo ? 'badge-success' : 'badge-danger'}">${m.activo ? 'Activo' : 'Inactivo'}</span></td
-                        <td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td
-                    </tr>`).join('')
-                }</tbody></table>`;
+            const listDiv = document.getElementById('medicamentosList');
+            if (listDiv) {
+                listDiv.innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">Sin medicamentos asignados</p>' :
+                    `<table class="table"><thead><tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${
+                        medicamentosPaciente.map(m => `<tr>
+                            <td>${m.medicamento_nombre}</td
+                            <td>${m.dosis}</td
+                            <td>${m.horario ? m.horario.join(', ') : ''}</td
+                            <td><span class="badge ${m.activo ? 'badge-success' : 'badge-danger'}">${m.activo ? 'Activo' : 'Inactivo'}</span></td
+                            <td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td
+                        </tr>`).join('')
+                    }</tbody></tr>`;
+            }
         } catch(err) { showToast(err.message, 'error'); }
     }
 
     async function asignarMedicamento() {
-        const pacienteId = document.getElementById('asignarPaciente').value;
-        const medicamentoIndex = document.getElementById('asignarMedicamento').value;
-        const dosis = document.getElementById('asignarDosis').value;
-        const horarioStr = document.getElementById('asignarHorario').value;
+        const pacienteId = document.getElementById('asignarPaciente')?.value;
+        const medicamentoIndex = document.getElementById('asignarMedicamento')?.value;
+        const dosis = document.getElementById('asignarDosis')?.value;
+        const horarioStr = document.getElementById('asignarHorario')?.value;
         if (!pacienteId || !medicamentoIndex) { showToast('Complete todos los campos', 'error'); return; }
         
         const medicamento = medicamentosLista[parseInt(medicamentoIndex) - 1];
-        const horario = horarioStr.split(',').map(h => h.trim());
+        const horario = horarioStr ? horarioStr.split(',').map(h => h.trim()) : [];
         
         try {
             await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`, { 
@@ -2037,8 +2122,10 @@
                 }) 
             });
             showToast('Medicamento asignado');
-            document.getElementById('asignarDosis').value = '';
-            document.getElementById('asignarHorario').value = '';
+            const dosisField = document.getElementById('asignarDosis');
+            const horarioField = document.getElementById('asignarHorario');
+            if (dosisField) dosisField.value = '';
+            if (horarioField) horarioField.value = '';
             cargarMedicamentosPaciente();
         } catch(err) { showToast(err.message, 'error'); }
     }
@@ -2053,20 +2140,24 @@
     }
 
     function openMedicamentoModal() {
-        document.getElementById('medicamentoNombre').value = '';
-        document.getElementById('medicamentoPresentacion').value = '';
-        document.getElementById('medicamentoDosis').value = '';
-        document.getElementById('medicamentoModal').classList.add('active');
+        const fields = ['medicamentoNombre', 'medicamentoPresentacion', 'medicamentoDosis'];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.value = '';
+        });
+        const modal = document.getElementById('medicamentoModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closeMedicamentoModal() {
-        document.getElementById('medicamentoModal').classList.remove('active');
+        const modal = document.getElementById('medicamentoModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function saveMedicamento() {
-        const nombre = document.getElementById('medicamentoNombre').value;
-        const presentacion = document.getElementById('medicamentoPresentacion').value;
-        const dosis = document.getElementById('medicamentoDosis').value;
+        const nombre = document.getElementById('medicamentoNombre')?.value;
+        const presentacion = document.getElementById('medicamentoPresentacion')?.value;
+        const dosis = document.getElementById('medicamentoDosis')?.value;
         
         if (!nombre) {
             showToast('El nombre del medicamento es requerido', 'error');
@@ -2075,7 +2166,7 @@
         
         try {
             const medicamentosExistentes = await apiFetch('/api/medicamentos').catch(() => []);
-            const existe = medicamentosExistentes.some(m => m.nombre.toLowerCase() === nombre.toLowerCase());
+            const existe = medicamentosExistentes.some(m => m.nombre && m.nombre.toLowerCase() === nombre.toLowerCase());
             if (existe) {
                 showToast('El medicamento ya existe en el catálogo', 'warning');
                 closeMedicamentoModal();
@@ -2088,9 +2179,6 @@
             });
             showToast('Medicamento registrado correctamente');
             closeMedicamentoModal();
-            document.getElementById('medicamentoNombre').value = '';
-            document.getElementById('medicamentoPresentacion').value = '';
-            document.getElementById('medicamentoDosis').value = '';
             await cargarMedicamentosSelect();
         } catch (err) {
             showToast(err.message, 'error');
@@ -2098,42 +2186,58 @@
     }
 
     // ============================================================
-    // PAGOS Y ADEUDOS
+    // PAGOS Y ADEUDOS (funciones básicas)
     // ============================================================
     async function cargarPagosPaciente() {
-        const pacienteId = document.getElementById('pagosPacienteSelect').value;
-        if (!pacienteId) { document.getElementById('adeudoInfo').innerHTML = ''; document.getElementById('pagosList').innerHTML = ''; return; }
+        const pacienteId = document.getElementById('pagosPacienteSelect')?.value;
+        if (!pacienteId) { 
+            const adeudoDiv = document.getElementById('adeudoInfo');
+            const pagosDiv = document.getElementById('pagosList');
+            if (adeudoDiv) adeudoDiv.innerHTML = '';
+            if (pagosDiv) pagosDiv.innerHTML = '';
+            return; 
+        }
         try {
             const adeudo = await apiFetch(`/api/pacientes/${pacienteId}/adeudo`);
             const pagos = await apiFetch(`/api/pacientes/${pacienteId}/pagos`);
-            document.getElementById('adeudoInfo').innerHTML = `<div class="card"><h3>Adeudo Actual: ${formatCurrency(adeudo.adeudo)}</h3><p>Mensualidad: ${formatCurrency(adeudo.precio_mensual || 0)}</p></div>`;
-            document.getElementById('pagosList').innerHTML = pagos.length === 0 ? '<p>Sin pagos registrados</p>' :
-                `<table class="table"><thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Recibo</th></tr></thead><tbody>${
-                    pagos.map(p => `<tr>
-                        <td>${formatDate(p.fecha_pago)}</td
-                        <td>${formatCurrency(p.monto)}</td
-                        <td>${p.metodo_pago}</td
-                        <td>${p.recibo_pdf_url ? '<a href="#" onclick="descargarRecibo(\''+p.recibo_pdf_url+'\')">Ver PDF</a>' : '-'}</td
-                    </tr>`).join('')
-                }</tbody></table>`;
+            const adeudoDiv = document.getElementById('adeudoInfo');
+            if (adeudoDiv) {
+                adeudoDiv.innerHTML = `<div class="card"><h3>Adeudo Actual: ${formatCurrency(adeudo.adeudo)}</h3><p>Mensualidad: ${formatCurrency(adeudo.precio_mensual || 0)}</p></div>`;
+            }
+            const pagosDiv = document.getElementById('pagosList');
+            if (pagosDiv) {
+                pagosDiv.innerHTML = pagos.length === 0 ? '<p>Sin pagos registrados</p>' :
+                    `<table class="table"><thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Recibo</th><tr></thead><tbody>${
+                        pagos.map(p => `<tr>
+                            <td>${formatDate(p.fecha_pago)}</td
+                            <td>${formatCurrency(p.monto)}</td
+                            <td>${p.metodo_pago}</td
+                            <td>${p.recibo_pdf_url ? '<a href="#" onclick="descargarRecibo(\''+p.recibo_pdf_url+'\')">Ver PDF</a>' : '-'}</td
+                        </tr>`).join('')
+                    }</tbody></table>`;
+            }
         } catch(err) { showToast(err.message, 'error'); }
     }
 
     function openPagoModal() {
         cargarPacientesSelects();
-        document.getElementById('pagoMonto').value = '';
-        document.getElementById('pagoMetodo').value = 'efectivo';
-        document.getElementById('pagoModal').classList.add('active');
+        const montoField = document.getElementById('pagoMonto');
+        const metodoField = document.getElementById('pagoMetodo');
+        if (montoField) montoField.value = '';
+        if (metodoField) metodoField.value = 'efectivo';
+        const modal = document.getElementById('pagoModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closePagoModal() {
-        document.getElementById('pagoModal').classList.remove('active');
+        const modal = document.getElementById('pagoModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function registrarPago() {
-        const pacienteId = document.getElementById('pagoPaciente').value;
-        const monto = document.getElementById('pagoMonto').value;
-        const metodo = document.getElementById('pagoMetodo').value;
+        const pacienteId = document.getElementById('pagoPaciente')?.value;
+        const monto = document.getElementById('pagoMonto')?.value;
+        const metodo = document.getElementById('pagoMetodo')?.value;
         if (!pacienteId || !monto) { showToast('Complete los campos', 'error'); return; }
         try {
             const response = await fetch(`${API_URL}/api/pacientes/${pacienteId}/pagos`, {
@@ -2156,18 +2260,20 @@
     }
 
     // ============================================================
-    // NÓMINA
+    // NÓMINA (funciones básicas)
     // ============================================================
     async function loadEmpleados() {
         try {
             empleados = await apiFetch('/api/nomina/empleados');
             const tbody = document.querySelector('#empleadosTable tbody');
-            if (tbody) tbody.innerHTML = empleados.map(e => `<tr>
-                <td>${e.nombre}</td
-                <td>${e.puesto}</td
-                <td>${formatCurrency(e.salario_base)}</td
-                <td><button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">Eliminar</button></td
-            </tr>`).join('');
+            if (tbody) {
+                tbody.innerHTML = empleados.map(e => `<tr>
+                    <td>${e.nombre}</td
+                    <td>${e.puesto}</td
+                    <td>${formatCurrency(e.salario_base)}</td
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">Eliminar</button></td
+                </tr>`).join('');
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -2175,13 +2281,15 @@
         try {
             const nominas = await apiFetch('/api/nomina');
             const tbody = document.querySelector('#nominasTable tbody');
-            if (tbody) tbody.innerHTML = nominas.map(n => `<td>
-                <td>${formatDate(n.periodo)}</td
-                <td>${n.empleado_nombre}</td
-                <td>${formatCurrency(n.total)}</td
-                <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td
-                <td><button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})">Pagar</button></td
-            </tr>`).join('');
+            if (tbody) {
+                tbody.innerHTML = nominas.map(n => `<td>
+                    <td>${formatDate(n.periodo)}</td
+                    <td>${n.empleado_nombre}</td
+                    <td>${formatCurrency(n.total)}</td
+                    <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td
+                    <td><button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})">Pagar</button></td
+                </tr>`).join('');
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -2203,23 +2311,26 @@
     }
 
     function openEmpleadoModal() {
-        document.getElementById('empleadoNombre').value = '';
-        document.getElementById('empleadoPuesto').value = '';
-        document.getElementById('empleadoSalario').value = '';
-        document.getElementById('empleadoHorario').value = '';
-        document.getElementById('empleadoModal').classList.add('active');
+        const fields = ['empleadoNombre', 'empleadoPuesto', 'empleadoSalario', 'empleadoHorario'];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.value = '';
+        });
+        const modal = document.getElementById('empleadoModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closeEmpleadoModal() {
-        document.getElementById('empleadoModal').classList.remove('active');
+        const modal = document.getElementById('empleadoModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function saveEmpleado() {
         const payload = {
-            nombre: document.getElementById('empleadoNombre').value,
-            puesto: document.getElementById('empleadoPuesto').value,
-            salario_base: parseFloat(document.getElementById('empleadoSalario').value),
-            horario: document.getElementById('empleadoHorario').value ? JSON.parse(document.getElementById('empleadoHorario').value) : null
+            nombre: document.getElementById('empleadoNombre')?.value || '',
+            puesto: document.getElementById('empleadoPuesto')?.value || '',
+            salario_base: parseFloat(document.getElementById('empleadoSalario')?.value || 0),
+            horario: document.getElementById('empleadoHorario')?.value ? JSON.parse(document.getElementById('empleadoHorario').value) : null
         };
         try {
             await apiFetch('/api/nomina/empleados', { method: 'POST', body: JSON.stringify(payload) });
@@ -2247,35 +2358,40 @@
         try {
             const servicios = await apiFetch('/api/servicios');
             const tbody = document.querySelector('#serviciosTable tbody');
-            if (tbody) tbody.innerHTML = servicios.map(s => `<tr>
-                <td>${s.nombre}</td
-                <td>${s.proveedor || '-'}</td
-                <td>${formatCurrency(s.monto)}</td
-                <td>${formatDate(s.fecha_vencimiento)}</td
-                <td><span class="badge ${s.pagado ? 'badge-success' : 'badge-danger'}">${s.pagado ? 'Pagado' : 'Pendiente'}</span></td
-                <td><button class="btn btn-success btn-sm" onclick="marcarServicioPagado(${s.id})">Marcar Pagado</button></td
-            </tr>`).join('');
+            if (tbody) {
+                tbody.innerHTML = servicios.map(s => `<tr>
+                    <td>${s.nombre}</td
+                    <td>${s.proveedor || '-'}</td
+                    <td>${formatCurrency(s.monto)}</td
+                    <td>${formatDate(s.fecha_vencimiento)}</td
+                    <td><span class="badge ${s.pagado ? 'badge-success' : 'badge-danger'}">${s.pagado ? 'Pagado' : 'Pendiente'}</span></td
+                    <td><button class="btn btn-success btn-sm" onclick="marcarServicioPagado(${s.id})">Marcar Pagado</button></td
+                </tr>`).join('');
+            }
         } catch(e) { console.error(e); }
     }
 
     function openServicioModal() {
-        document.getElementById('servicioNombre').value = '';
-        document.getElementById('servicioProveedor').value = '';
-        document.getElementById('servicioMonto').value = '';
-        document.getElementById('servicioVencimiento').value = '';
-        document.getElementById('servicioModal').classList.add('active');
+        const fields = ['servicioNombre', 'servicioProveedor', 'servicioMonto', 'servicioVencimiento'];
+        fields.forEach(f => {
+            const el = document.getElementById(f);
+            if (el) el.value = '';
+        });
+        const modal = document.getElementById('servicioModal');
+        if (modal) modal.classList.add('active');
     }
 
     function closeServicioModal() {
-        document.getElementById('servicioModal').classList.remove('active');
+        const modal = document.getElementById('servicioModal');
+        if (modal) modal.classList.remove('active');
     }
 
     async function saveServicio() {
         const payload = {
-            nombre: document.getElementById('servicioNombre').value,
-            proveedor: document.getElementById('servicioProveedor').value,
-            monto: parseFloat(document.getElementById('servicioMonto').value),
-            fecha_vencimiento: document.getElementById('servicioVencimiento').value
+            nombre: document.getElementById('servicioNombre')?.value || '',
+            proveedor: document.getElementById('servicioProveedor')?.value || '',
+            monto: parseFloat(document.getElementById('servicioMonto')?.value || 0),
+            fecha_vencimiento: document.getElementById('servicioVencimiento')?.value || null
         };
         try {
             await apiFetch('/api/servicios', { method: 'POST', body: JSON.stringify(payload) });
@@ -2294,7 +2410,7 @@
     }
 
     // ============================================================
-    // CONFIGURACIÓN - PLANES
+    // CONFIGURACIÓN
     // ============================================================
     let planesData = [
         { id: 1, nombre: "Básico", precio_mensual: 8000, descripcion: "Cuidados básicos y alimentación" },
@@ -2334,44 +2450,45 @@
         loadPlanes();
     }
 
-    // ============================================================
-    // CONFIGURACIÓN - COSTOS
-    // ============================================================
     async function loadCostos() {
-        const config = await apiFetch('/api/config');
-        const costs = config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : {};
-        const container = document.getElementById('costosContainer');
-        if (container) {
-            container.innerHTML = `
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-user-nurse"></i> Personal de Cuidado</h4><p>3 personas (turnos rotativos)</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costPersonal" value="${costs.personal || 52500}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-utensils"></i> Alimentación</h4><p>3 comidas + 2 colaciones diarias</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costFood" value="${costs.food || 30000}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-stethoscope"></i> Servicios Médicos</h4><p>Geriatra, nutriólogo, psicólogo</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costMedical" value="${costs.medical || 20000}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-bolt"></i> Servicios Básicos</h4><p>Luz, agua, gas, internet</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costUtilities" value="${costs.utilities || 10000}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-syringe"></i> Insumos Médicos</h4><p>Medicamentos básicos, material de curación</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costSupplies" value="${costs.supplies || 6500}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-shield-alt"></i> Seguros y Mantenimiento</h4><p>Seguro de responsabilidad civil</p></div>
-                    <div class="cost-input"><span>$</span><input type="number" id="costInsurance" value="${costs.insurance || 4000}" class="form-control"></div>
-                </div>
-                <div class="cost-item">
-                    <div class="cost-info"><h4><i class="fas fa-chart-line"></i> Fondo de Contingencia</h4><p>Porcentaje del ingreso mensual</p></div>
-                    <div class="cost-input"><input type="number" id="costContingencyPercent" value="${costs.contingencyPercent || 10}" style="width:80px;"> <span>%</span></div>
-                </div>
-            `;
+        try {
+            const config = await apiFetch('/api/config');
+            const costs = config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : {};
+            const container = document.getElementById('costosContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-user-nurse"></i> Personal de Cuidado</h4><p>3 personas (turnos rotativos)</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costPersonal" value="${costs.personal || 52500}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-utensils"></i> Alimentación</h4><p>3 comidas + 2 colaciones diarias</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costFood" value="${costs.food || 30000}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-stethoscope"></i> Servicios Médicos</h4><p>Geriatra, nutriólogo, psicólogo</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costMedical" value="${costs.medical || 20000}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-bolt"></i> Servicios Básicos</h4><p>Luz, agua, gas, internet</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costUtilities" value="${costs.utilities || 10000}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-syringe"></i> Insumos Médicos</h4><p>Medicamentos básicos, material de curación</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costSupplies" value="${costs.supplies || 6500}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-shield-alt"></i> Seguros y Mantenimiento</h4><p>Seguro de responsabilidad civil</p></div>
+                        <div class="cost-input"><span>$</span><input type="number" id="costInsurance" value="${costs.insurance || 4000}" class="form-control"></div>
+                    </div>
+                    <div class="cost-item">
+                        <div class="cost-info"><h4><i class="fas fa-chart-line"></i> Fondo de Contingencia</h4><p>Porcentaje del ingreso mensual</p></div>
+                        <div class="cost-input"><input type="number" id="costContingencyPercent" value="${costs.contingencyPercent || 10}" style="width:80px;"> <span>%</span></div>
+                    </div>
+                `;
+            }
+        } catch(e) {
+            console.error('Error cargando costos:', e);
         }
     }
 
@@ -2399,15 +2516,10 @@
         initCharts();
         checkAuth();
         setupKPIClicks();
-        if (isAdmin) {
-            refreshAll();
-            loadPatients();
-        } else {
-            loadPatients();
-        }
+        refreshAll();
+        loadPatients();
     });
 </script>
-
         
 </body>
 </html>
