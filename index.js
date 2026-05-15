@@ -158,6 +158,44 @@ app.delete('/api/patients/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- Historial Clínico ---
+app.get('/api/pacientes/:id/historia', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM historial_clinico WHERE paciente_id = $1 ORDER BY fecha DESC',
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/pacientes/:id/historia', async (req, res) => {
+  const { presion_arterial, frecuencia_cardiaca, temperatura, sintomas, diagnostico, tratamiento } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO historial_clinico (paciente_id, presion_arterial, frecuencia_cardiaca, temperatura, sintomas, diagnostico, tratamiento)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.params.id, presion_arterial, frecuencia_cardiaca, temperatura, sintomas, diagnostico, tratamiento]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Planes y camas ---
+app.get('/api/planes', async (req, res) => {
+  const result = await pool.query('SELECT * FROM planes');
+  res.json(result.rows);
+});
+
+app.put('/api/pacientes/:id/plan', async (req, res) => {
+  const { plan_id, cama_asignada } = req.body;
+  await pool.query('UPDATE patients SET plan_id = $1, cama_asignada = $2 WHERE id = $3', [plan_id, cama_asignada, req.params.id]);
+  res.json({ message: 'Plan y cama actualizados' });
+});
 // ─── Financial Config ────────────────────────────────────────────────────────
 app.get('/api/config', async (req, res) => {
   try {
