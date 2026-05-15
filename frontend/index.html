@@ -89,20 +89,7 @@
     padding: 2px 8px;
     font-size: 0.7em;
 }
-
-/* Expandable card */
-.patient-card.expanded {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 500px;
-    z-index: 1500;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-}
+/* Contenido expandible dentro de tarjeta (solo para vista rápida) */
 .expandable-content {
     display: none;
     padding: 15px;
@@ -1608,12 +1595,126 @@ async function toggleExpandContent(pacienteId, tipo) {
         innerDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
     }
 }
+// Variable para trackear qué gráfico mostrar
+let dashboardView = 'costos';
 
-    // Variable para trackear qué gráfico mostrar
-let dashboardView = 'costos'; // 'costos' o 'ingresos'
+// ============================================================
+// FUNCIONES DE TARJETA (simplificadas)
+// ============================================================
+
+// Al hacer clic en la cabecera de la tarjeta, abrir dashboard completo
+function abrirDashboardPaciente(pacienteId) {
+    openPacienteDashboard(pacienteId);
+}
+
+// Mostrar historial rápido dentro de la tarjeta (sin abrir modal)
+async function mostrarHistoriaRapida(pacienteId, event) {
+    event.stopPropagation(); // Evitar que se abra el modal
+    
+    const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
+    const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
+    
+    if (!expandDiv || !innerDiv) return;
+    
+    // Si ya está visible y es el mismo tipo, cerrar
+    if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'historia') {
+        expandDiv.classList.remove('show');
+        return;
+    }
+    
+    expandDiv.dataset.currentType = 'historia';
+    innerDiv.innerHTML = '<div class="spinner"></div> Cargando historial...';
+    expandDiv.classList.add('show');
+    
+    try {
+        const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+        if (historial.length === 0) {
+            innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-notes-medical"></i> Sin historial clínico registrado</p>';
+        } else {
+            innerDiv.innerHTML = `
+                <h4><i class="fas fa-history"></i> Últimos registros</h4>
+                <table class="table" style="font-size:0.85em;">
+                    <thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead>
+                    <tbody>
+                        ${historial.slice(0,3).map(h => `
+                            <tr>
+                                <td>${formatDate(h.fecha)}</td
+                                <td>${h.presion_arterial || '-'}</td
+                                <td>${h.frecuencia_cardiaca || '-'}</td
+                                <td>${h.temperatura || '-'}°C</td
+                                <td>${h.diagnostico?.substring(0,25) || '-'}</td
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verHistoriaCompleta(${pacienteId}); event.stopPropagation();">
+                    Ver historial completo
+                </button>
+            `;
+        }
+    } catch (err) {
+        innerDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
+    }
+}
+
+// Mostrar medicamentos rápidos dentro de la tarjeta
+async function mostrarMedicamentosRapidos(pacienteId, event) {
+    event.stopPropagation();
+    
+    const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
+    const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
+    
+    if (!expandDiv || !innerDiv) return;
+    
+    if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'medicamentos') {
+        expandDiv.classList.remove('show');
+        return;
+    }
+    
+    expandDiv.dataset.currentType = 'medicamentos';
+    innerDiv.innerHTML = '<div class="spinner"></div> Cargando medicamentos...';
+    expandDiv.classList.add('show');
+    
+    try {
+        const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
+        if (medicamentosPaciente.length === 0) {
+            innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
+        } else {
+            innerDiv.innerHTML = `
+                <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    ${medicamentosPaciente.map(m => `
+                        <div class="med-item" style="margin:0;">
+                            <div class="med-time"><i class="fas fa-clock"></i> ${m.horario ? m.horario.join(', ') : 'Horario flexible'}</div>
+                            <div class="med-name">${m.medicamento_nombre}</div>
+                            <div class="med-dose">${m.dosis}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosCompleto(${pacienteId}); event.stopPropagation();">
+                    Ver medicamentos completo
+                </button>
+            `;
+        }
+    } catch (err) {
+        innerDiv.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
+    }
+}
+
+// Funciones para ver completo (abren las páginas correspondientes)
+function verHistoriaCompleta(pacienteId) {
+    verHistoriaPaciente(pacienteId);
+}
+
+function verMedicamentosCompleto(pacienteId) {
+    verMedicamentosPaciente(pacienteId);
+}
+
+// ============================================================
+// DASHBOARD INTERACTIVO (KPIs)
+// ============================================================
 
 function setupKPIClicks() {
-    // Modificar los KPI cards para que sean clickeables
     const kpiCards = document.querySelectorAll('.kpi-card');
     if (kpiCards.length >= 4) {
         // Ingresos Mensuales - muestra ingresos
@@ -1650,20 +1751,20 @@ function updateDashboardChartsView() {
     const contingency = totalIncome * ((c.contingencyPercent || 10) / 100);
     
     if (dashboardView === 'ingresos') {
-        // Mostrar gráfico de ingresos vs costos
         if (charts.cost) {
             charts.cost.data.datasets[0].data = [totalIncome, totalCosts];
             charts.cost.data.labels = ['Ingresos Totales', 'Costos Totales'];
             charts.cost.update();
-            document.querySelector('#costChart').parentElement.querySelector('.card-title').innerHTML = '<i class="fas fa-chart-line"></i> Ingresos vs Costos';
+            const titleEl = document.querySelector('#costChart')?.parentElement?.querySelector('.card-title');
+            if (titleEl) titleEl.innerHTML = '<i class="fas fa-chart-line"></i> Ingresos vs Costos';
         }
     } else {
-        // Mostrar distribución de costos
         if (charts.cost) {
             charts.cost.data.datasets[0].data = [c.personal || 0, c.food || 0, c.medical || 0, c.utilities || 0, c.supplies || 0, c.insurance || 0, contingency];
             charts.cost.data.labels = ['Personal','Alimentación','Médicos','Servicios','Insumos','Seguros','Contingencia'];
             charts.cost.update();
-            document.querySelector('#costChart').parentElement.querySelector('.card-title').innerHTML = '<i class="fas fa-chart-pie"></i> Distribución de Costos';
+            const titleEl = document.querySelector('#costChart')?.parentElement?.querySelector('.card-title');
+            if (titleEl) titleEl.innerHTML = '<i class="fas fa-chart-pie"></i> Distribución de Costos';
         }
     }
 }
@@ -1674,6 +1775,7 @@ function showActivePatients() {
     showPage('patients', document.querySelector('.nav-item[onclick*="patients"]'));
     showToast('Mostrando solo pacientes activos', 'info');
 }
+
 
     // Función para renderizar horario gráfico de empleados
 function renderHorarioGrafico(empleado) {
