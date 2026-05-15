@@ -205,6 +205,71 @@ app.put('/api/pacientes/:id/plan', async (req, res) => {
   await pool.query('UPDATE patients SET plan_id = $1, cama_asignada = $2 WHERE id = $3', [plan_id, cama_asignada, req.params.id]);
   res.json({ message: 'Plan y cama actualizados' });
 });
+// ─── Medicamentos ────────────────────────────────────────────────────────────
+app.get('/api/medicamentos', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM medicamentos ORDER BY nombre');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/medicamentos', async (req, res) => {
+    const { nombre, presentacion, dosis_habitual } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO medicamentos (nombre, presentacion, dosis_habitual) VALUES ($1, $2, $3) RETURNING *',
+            [nombre, presentacion, dosis_habitual]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/pacientes/:id/medicamentos', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT pm.*, m.nombre as medicamento_nombre, m.presentacion 
+             FROM paciente_medicamentos pm
+             JOIN medicamentos m ON pm.medicamento_id = m.id
+             WHERE pm.paciente_id = $1 AND pm.activo = true`,
+            [req.params.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/pacientes/:id/medicamentos', async (req, res) => {
+    const { medicamento_id, dosis, horario } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO paciente_medicamentos (paciente_id, medicamento_id, dosis, horario)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [req.params.id, medicamento_id, dosis, horario]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/medicamentos/aplicar', async (req, res) => {
+    const { paciente_medicamento_id, aplicado, observacion } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO aplicaciones_medicamento (paciente_medicamento_id, aplicado, observacion)
+             VALUES ($1, $2, $3) RETURNING *`,
+            [paciente_medicamento_id, aplicado, observacion]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // ─── Financial Config ────────────────────────────────────────────────────────
 app.get('/api/config', async (req, res) => {
   try {
@@ -262,7 +327,41 @@ app.put('/api/settings', async (req, res) => {
     res.status(500).json({ error: e.message });
   } finally { client.release(); }
 });
+// ─── Servicios Externos ──────────────────────────────────────────────────────
+app.get('/api/servicios', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM servicios_externos ORDER BY fecha_vencimiento');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
+app.post('/api/servicios', async (req, res) => {
+    const { nombre, proveedor, monto, fecha_vencimiento } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO servicios_externos (nombre, proveedor, monto, fecha_vencimiento)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [nombre, proveedor, monto, fecha_vencimiento]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/servicios/:id/pagar', async (req, res) => {
+    try {
+        await pool.query(
+            `UPDATE servicios_externos SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = $1`,
+            [req.params.id]
+        );
+        res.json({ message: 'Servicio marcado como pagado' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // ─── Start ───────────────────────────────────────────────────────────────────
 initDB()
   .then(() => {
