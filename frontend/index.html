@@ -273,7 +273,66 @@
         transition: all 0.3s;
         border-left: 4px solid var(--primary);
     }
+/* Efecto cristal para tarjetas */
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 24px;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
 
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    background: rgba(255, 255, 255, 0.98);
+}
+
+/* Botones de acción en tarjeta */
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: center;
+}
+
+.card-action-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    font-size: 0.85em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card-action-btn:hover {
+    background: rgba(255,255,255,0.4);
+    transform: scale(1.02);
+}
+
+/* Ocultar secciones de admin */
+.admin-only {
+    display: none;
+}
+
+.admin-only.visible {
+    display: block;
+}
+
+.admin-only-flex {
+    display: none;
+}
+
+.admin-only-flex.visible {
+    display: flex;
+}
+        
     .kpi-card.success { border-left-color: var(--success); }
     .kpi-card.warning { border-left-color: var(--warning); }
     .kpi-card.danger { border-left-color: var(--danger); }
@@ -666,6 +725,74 @@
 </head>
 <body>
 
+    <!-- Modal de Login -->
+<div class="modal" id="loginModal" style="display: flex; background: rgba(0,0,0,0.8);">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">
+            <h2 class="modal-title"><i class="fas fa-lock"></i> Acceso Administrador</h2>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Usuario</label>
+                <input type="text" id="loginUser" class="form-control" placeholder="admin" value="admin">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contraseña</label>
+                <input type="password" id="loginPass" class="form-control" placeholder="admin" value="admin">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="verificarLogin()" style="width: 100%;">
+                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Modal de Edición Rápida desde Tarjeta -->
+<div class="modal" id="editQuickModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Editar Paciente</h2>
+            <button class="modal-close" onclick="closeEditQuickModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editQuickId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="editQuickName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="text" id="editQuickPhone" class="form-control">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="editQuickPlan" class="form-control">
+                        <option value="1">Básico</option>
+                        <option value="2">Intermedio</option>
+                        <option value="3">Más</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cama</label>
+                    <input type="text" id="editQuickCama" class="form-control" placeholder="Ej: 101">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Contacto Familiar</label>
+                <input type="text" id="editQuickContact" class="form-control">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeEditQuickModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveEditQuick()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
 <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <span>Cargando datos...</span>
