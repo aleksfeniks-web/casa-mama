@@ -1,80 +1,40 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const path = require('path');
-
-// Servir archivos estáticos del frontend
-app.use(express.static(path.join(__dirname, 'frontend')));
-
-// Importar rutas
-const createNominaRoutes = require('./routes/nomina');
-const nominaRoutes = createNominaRoutes(pool);
-
-
-// Usar rutas
-app.use('/api/nomina', nominaRoutes);
-app.use('/api', pagosRoutes);  // las rutas de pagos están en /api/...
-
-// ─── Database ────────────────────────────────────────────────────────────────
+// ============================================================
+// 1. BASE DE DATOS - Crear pool PRIMERO
+// ============================================================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     require: true,
-    rejectUnauthorized: false  // Para desarrollo; en producción usa verify-full
+    rejectUnauthorized: false
   }
 });
 
-const initDB = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS patients (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      birthdate DATE,
-      curp VARCHAR(18),
-      phone VARCHAR(20),
-      contact VARCHAR(255),
-      contact_phone VARCHAR(20),
-      entry_date DATE,
-      fee NUMERIC(10,2) DEFAULT 0,
-      status VARCHAR(20) DEFAULT 'active',
-      conditions TEXT,
-      notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+// ============================================================
+// 2. IMPORTAR RUTAS (después de crear pool)
+// ============================================================
+const createNominaRoutes = require('./routes/nomina');
+const nominaRoutes = createNominaRoutes(pool);
 
-    CREATE TABLE IF NOT EXISTS financial_config (
-      id SERIAL PRIMARY KEY,
-      key VARCHAR(100) UNIQUE NOT NULL,
-      value JSONB NOT NULL,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
+// pagos.js - si también necesita pool, modifícalo similar
+// Por ahora, asumimos que pagos.js usa su propio pool
+const pagosRoutes = require('./routes/pagos');
 
-    CREATE TABLE IF NOT EXISTS settings (
-      id SERIAL PRIMARY KEY,
-      key VARCHAR(100) UNIQUE NOT NULL,
-      value TEXT,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
+// ============================================================
+// 3. MIDDLEWARES
+// ============================================================
+// Servir archivos estáticos del frontend
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-  await pool.query(`
-    INSERT INTO financial_config (key, value) VALUES
-      ('initialInvestment', '100000'),
-      ('costs', '{"personal":52500,"food":30000,"medical":20000,"utilities":10000,"supplies":6500,"insurance":4000,"contingencyPercent":10}'),
-      ('pricePerPatient', '12000'),
-      ('maxCapacity',     '12')
-    ON CONFLICT (key) DO NOTHING;
-  `);
-
-  console.log('✅ Base de datos lista');
-};
-
-// ─── CORS ────────────────────────────────────────────────────────────────────
+// CORS
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://casa-mama.fly.dev',
@@ -94,17 +54,25 @@ app.use(cors({
 
 app.use(express.json());
 
-// ─── Ruta raíz (sirve el frontend) ──────────────────────────────────────────
+// ============================================================
+// 4. RUTAS API
+// ============================================================
+app.use('/api/nomina', nominaRoutes);
+app.use('/api', pagosRoutes);
+
+// Ruta raíz (sirve el frontend)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// ─── Health ──────────────────────────────────────────────────────────────────
+// Health check
 app.get('/health', (req, res) =>
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 );
 
-// ─── Patients ────────────────────────────────────────────────────────────────
+// ============================================================
+// 5. PACIENTES (CRUD)
+// ============================================================
 app.get('/api/patients', async (req, res) => {
   try {
     const { status, search } = req.query;
@@ -166,7 +134,9 @@ app.delete('/api/patients/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- Historial Clínico ---
+// ============================================================
+// 6. HISTORIAL CLÍNICO
+// ============================================================
 app.get('/api/pacientes/:id/historia', async (req, res) => {
   try {
     const result = await pool.query(
@@ -193,83 +163,140 @@ app.post('/api/pacientes/:id/historia', async (req, res) => {
   }
 });
 
-// --- Planes y camas ---
-app.get('/api/planes', async (req, res) => {
-  const result = await pool.query('SELECT * FROM planes');
-  res.json(result.rows);
-});
-
-app.put('/api/pacientes/:id/plan', async (req, res) => {
-  const { plan_id, cama_asignada } = req.body;
-  await pool.query('UPDATE patients SET plan_id = $1, cama_asignada = $2 WHERE id = $3', [plan_id, cama_asignada, req.params.id]);
-  res.json({ message: 'Plan y cama actualizados' });
-});
-// ─── Medicamentos ────────────────────────────────────────────────────────────
+// ============================================================
+// 7. MEDICAMENTOS
+// ============================================================
 app.get('/api/medicamentos', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM medicamentos ORDER BY nombre');
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const result = await pool.query('SELECT * FROM medicamentos ORDER BY nombre');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/medicamentos', async (req, res) => {
-    const { nombre, presentacion, dosis_habitual } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO medicamentos (nombre, presentacion, dosis_habitual) VALUES ($1, $2, $3) RETURNING *',
-            [nombre, presentacion, dosis_habitual]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  const { nombre, presentacion, dosis_habitual } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO medicamentos (nombre, presentacion, dosis_habitual) VALUES ($1, $2, $3) RETURNING *',
+      [nombre, presentacion, dosis_habitual]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/pacientes/:id/medicamentos', async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT pm.*, m.nombre as medicamento_nombre, m.presentacion 
-             FROM paciente_medicamentos pm
-             JOIN medicamentos m ON pm.medicamento_id = m.id
-             WHERE pm.paciente_id = $1 AND pm.activo = true`,
-            [req.params.id]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const result = await pool.query(
+      `SELECT pm.*, m.nombre as medicamento_nombre, m.presentacion 
+       FROM paciente_medicamentos pm
+       JOIN medicamentos m ON pm.medicamento_id = m.id
+       WHERE pm.paciente_id = $1 AND pm.activo = true`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/pacientes/:id/medicamentos', async (req, res) => {
-    const { medicamento_id, dosis, horario } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO paciente_medicamentos (paciente_id, medicamento_id, dosis, horario)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [req.params.id, medicamento_id, dosis, horario]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  const { medicamento_id, dosis, horario } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO paciente_medicamentos (paciente_id, medicamento_id, dosis, horario)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.params.id, medicamento_id, dosis, horario]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/medicamentos/aplicar', async (req, res) => {
-    const { paciente_medicamento_id, aplicado, observacion } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO aplicaciones_medicamento (paciente_medicamento_id, aplicado, observacion)
-             VALUES ($1, $2, $3) RETURNING *`,
-            [paciente_medicamento_id, aplicado, observacion]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  const { paciente_medicamento_id, aplicado, observacion } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO aplicaciones_medicamento (paciente_medicamento_id, aplicado, observacion)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [paciente_medicamento_id, aplicado, observacion]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
-// ─── Financial Config ────────────────────────────────────────────────────────
+
+// ============================================================
+// 8. PLANES Y CAMAS
+// ============================================================
+app.get('/api/planes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM planes');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/planes/:id', async (req, res) => {
+  const { nombre, precio_mensual, descripcion } = req.body;
+  try {
+    await pool.query(
+      'UPDATE planes SET nombre = $1, precio_mensual = $2, descripcion = $3 WHERE id = $4',
+      [nombre, precio_mensual, descripcion, req.params.id]
+    );
+    res.json({ message: 'Plan actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 9. SERVICIOS EXTERNOS
+// ============================================================
+app.get('/api/servicios', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM servicios_externos ORDER BY fecha_vencimiento');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/servicios', async (req, res) => {
+  const { nombre, proveedor, monto, fecha_vencimiento } = req.body;
+  try {
+    const result = await pool.query(
+      `INSERT INTO servicios_externos (nombre, proveedor, monto, fecha_vencimiento)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [nombre, proveedor, monto, fecha_vencimiento]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/servicios/:id/pagar', async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE servicios_externos SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = $1',
+      [req.params.id]
+    );
+    res.json({ message: 'Servicio marcado como pagado' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 10. CONFIGURACIÓN FINANCIERA
+// ============================================================
 app.get('/api/config', async (req, res) => {
   try {
     const r = await pool.query('SELECT key, value FROM financial_config');
@@ -298,7 +325,9 @@ app.put('/api/config', async (req, res) => {
   } finally { client.release(); }
 });
 
-// ─── Settings ────────────────────────────────────────────────────────────────
+// ============================================================
+// 11. CONFIGURACIÓN GENERAL (SETTINGS)
+// ============================================================
 app.get('/api/settings', async (req, res) => {
   try {
     const r = await pool.query('SELECT key, value FROM settings');
@@ -326,45 +355,139 @@ app.put('/api/settings', async (req, res) => {
     res.status(500).json({ error: e.message });
   } finally { client.release(); }
 });
-// ─── Servicios Externos ──────────────────────────────────────────────────────
-app.get('/api/servicios', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM servicios_externos ORDER BY fecha_vencimiento');
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
-app.post('/api/servicios', async (req, res) => {
-    const { nombre, proveedor, monto, fecha_vencimiento } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO servicios_externos (nombre, proveedor, monto, fecha_vencimiento)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [nombre, proveedor, monto, fecha_vencimiento]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// ============================================================
+// 12. INICIALIZAR BASE DE DATOS Y ARRANCAR SERVIDOR
+// ============================================================
+const initDB = async () => {
+  // Crear tablas si no existen
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS patients (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      birthdate DATE,
+      curp VARCHAR(18),
+      phone VARCHAR(20),
+      contact VARCHAR(255),
+      contact_phone VARCHAR(20),
+      entry_date DATE,
+      fee NUMERIC(10,2) DEFAULT 0,
+      status VARCHAR(20) DEFAULT 'active',
+      conditions TEXT,
+      notes TEXT,
+      plan_id INT,
+      cama_asignada VARCHAR(20),
+      alergias TEXT,
+      condiciones_cronicas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
 
-app.put('/api/servicios/:id/pagar', async (req, res) => {
-    try {
-        await pool.query(
-            `UPDATE servicios_externos SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = $1`,
-            [req.params.id]
-        );
-        res.json({ message: 'Servicio marcado como pagado' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-// ─── Start ───────────────────────────────────────────────────────────────────
+    CREATE TABLE IF NOT EXISTS planes (
+      id SERIAL PRIMARY KEY,
+      nombre VARCHAR(100) NOT NULL,
+      descripcion TEXT,
+      precio_mensual DECIMAL(10,2)
+    );
+
+    CREATE TABLE IF NOT EXISTS historial_clinico (
+      id SERIAL PRIMARY KEY,
+      paciente_id INT REFERENCES patients(id) ON DELETE CASCADE,
+      fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+      presion_arterial VARCHAR(20),
+      frecuencia_cardiaca INT,
+      temperatura DECIMAL(4,1),
+      sintomas TEXT,
+      diagnostico TEXT,
+      tratamiento TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS medicamentos (
+      id SERIAL PRIMARY KEY,
+      nombre VARCHAR(255) NOT NULL,
+      presentacion VARCHAR(100),
+      dosis_habitual VARCHAR(100)
+    );
+
+    CREATE TABLE IF NOT EXISTS paciente_medicamentos (
+      id SERIAL PRIMARY KEY,
+      paciente_id INT REFERENCES patients(id) ON DELETE CASCADE,
+      medicamento_id INT REFERENCES medicamentos(id),
+      dosis VARCHAR(100),
+      horario TIME[],
+      activo BOOLEAN DEFAULT TRUE,
+      fecha_inicio DATE DEFAULT CURRENT_DATE
+    );
+
+    CREATE TABLE IF NOT EXISTS aplicaciones_medicamento (
+      id SERIAL PRIMARY KEY,
+      paciente_medicamento_id INT REFERENCES paciente_medicamentos(id),
+      fecha_hora TIMESTAMPTZ DEFAULT NOW(),
+      aplicado BOOLEAN,
+      observacion TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS pagos (
+      id SERIAL PRIMARY KEY,
+      paciente_id INT REFERENCES patients(id),
+      monto DECIMAL(10,2) NOT NULL,
+      fecha_pago DATE NOT NULL,
+      metodo_pago VARCHAR(50),
+      recibo_pdf_url TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS servicios_externos (
+      id SERIAL PRIMARY KEY,
+      nombre VARCHAR(100),
+      proveedor VARCHAR(100),
+      monto DECIMAL(10,2),
+      fecha_vencimiento DATE,
+      pagado BOOLEAN DEFAULT FALSE,
+      fecha_pago DATE
+    );
+
+    CREATE TABLE IF NOT EXISTS financial_config (
+      id SERIAL PRIMARY KEY,
+      key VARCHAR(100) UNIQUE NOT NULL,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id SERIAL PRIMARY KEY,
+      key VARCHAR(100) UNIQUE NOT NULL,
+      value TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Insertar datos por defecto
+  await pool.query(`
+    INSERT INTO financial_config (key, value) VALUES
+      ('initialInvestment', '100000'),
+      ('costs', '{"personal":52500,"food":30000,"medical":20000,"utilities":10000,"supplies":6500,"insurance":4000,"contingencyPercent":10}'),
+      ('pricePerPatient', '12000'),
+      ('maxCapacity', '12')
+    ON CONFLICT (key) DO NOTHING;
+  `);
+
+  await pool.query(`
+    INSERT INTO planes (nombre, precio_mensual) VALUES
+      ('Básico', 8000),
+      ('Intermedio', 12000),
+      ('Completo', 16000)
+    ON CONFLICT DO NOTHING;
+  `);
+
+  console.log('✅ Base de datos lista');
+};
+
+// Iniciar
 initDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
+    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Servidor en puerto ${PORT}`));
   })
   .catch(err => {
     console.error('❌ Error DB:', err);
