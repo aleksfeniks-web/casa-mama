@@ -831,6 +831,37 @@
         if (pageName === 'medicamentos') { cargarPacientesSelects(); cargarMedicamentosSelect(); cargarMedicamentosPorPacienteSelect(); }
     }
 
+    // Cerrar modal de medicamento
+function closeMedicamentoModal() {
+    document.getElementById('medicamentoModal').classList.remove('active');
+}
+
+// Guardar nuevo medicamento
+async function saveMedicamento() {
+    const nombre = document.getElementById('medicamentoNombre').value;
+    const presentacion = document.getElementById('medicamentoPresentacion').value;
+    const dosis = document.getElementById('medicamentoDosis').value;
+    
+    if (!nombre) {
+        showToast('El nombre del medicamento es requerido', 'error');
+        return;
+    }
+    
+    try {
+        await apiFetch('/api/medicamentos', {
+            method: 'POST',
+            body: JSON.stringify({ nombre, presentacion, dosis_habitual: dosis })
+        });
+        showToast('Medicamento registrado correctamente');
+        closeMedicamentoModal();
+        // Recargar lista de medicamentos si es necesario
+        if (typeof cargarMedicamentosSelect === 'function') {
+            await cargarMedicamentosSelect();
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
     // ============================================================
     // DASHBOARD
     // ============================================================
