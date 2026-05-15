@@ -1,3 +1,6 @@
+// routes/nomina.js
+const express = require('express');
+
 function createNominaRoutes(pool) {
   const router = express.Router();
 
