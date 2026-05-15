@@ -12,8 +12,8 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'frontend')));
 
 // Importar rutas
-const nominaRoutes = require('./routes/nomina');
-const pagosRoutes = require('./routes/pagos');
+const createNominaRoutes = require('./routes/nomina');
+const nominaRoutes = createNominaRoutes(pool);
 
 
 // Usar rutas
