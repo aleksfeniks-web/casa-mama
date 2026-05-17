@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // ============================================================
 // 1. BASE DE DATOS - Crear pool PRIMERO
@@ -39,7 +39,7 @@ app.use(express.static(path.join(__dirname, 'frontend')));
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://casa-mama.onrender.com',
-  'http://localhost:3001',
+  'http://localhost:3000',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
 ].filter(Boolean);
