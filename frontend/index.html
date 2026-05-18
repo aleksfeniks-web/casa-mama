@@ -1126,6 +1126,176 @@
     </main>
 </div>
 
+    <!-- Inversiones Page -->
+<div id="page-inversiones" class="page" style="display:none;">
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-chart-line"></i> Inversiones y ROI</h1>
+        <div>
+            <button class="btn btn-primary" onclick="openInversionistaModal()">
+                <i class="fas fa-user-plus"></i> Nuevo Inversionista
+            </button>
+            <button class="btn btn-success" onclick="calcularROI()">
+                <i class="fas fa-calculator"></i> Calcular ROI
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs de inversiones -->
+    <div class="kpi-grid" id="inversionKPIs">
+        <div class="kpi-card">
+            <div class="kpi-content">
+                <div><h3>Inversión Total</h3><div class="kpi-value" id="totalInversion">$0</div></div>
+                <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card success">
+            <div class="kpi-content">
+                <div><h3>Pagado a Inversionistas</h3><div class="kpi-value" id="totalPagado">$0</div></div>
+                <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card warning">
+            <div class="kpi-content">
+                <div><h3>Pendiente por Pagar</h3><div class="kpi-value" id="totalPendiente">$0</div></div>
+                <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card info">
+            <div class="kpi-content">
+                <div><h3>Pacientes Actuales</h3><div class="kpi-value" id="pacientesActuales">0</div></div>
+                <div class="kpi-icon"><i class="fas fa-users"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Inversionistas -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-users"></i> Inversionistas</h3>
+        </div>
+        <table class="table" id="inversionistasTable">
+            <thead>
+                <tr><th>Nombre</th><th>Inversión</th><th>Comisión %</th><th>Pago Mensual</th><th>Pagado Total</th><th>Fecha</th><th>Acciones</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Proyecciones de ROI -->
+    <div class="card" id="roiCard" style="display: none;">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Proyecciones de Retorno de Inversión</h3>
+        </div>
+        <div id="roiProyecciones"></div>
+    </div>
+
+    <!-- Simulador de ROI -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-sliders-h"></i> Simulador de ROI</h3>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Monto a Invertir</label>
+                <input type="number" id="simMonto" class="form-control" placeholder="Ej: 500000">
+            </div>
+            <div class="form-group">
+                <label>Porcentaje Mensual (%)</label>
+                <input type="number" id="simPorcentaje" class="form-control" placeholder="Ej: 5" step="0.5">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="simularROI()">
+                    <i class="fas fa-calculator"></i> Simular
+                </button>
+            </div>
+        </div>
+        <div id="simulacionResultado" style="margin-top: 20px; display: none;">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div><h3>Pago Mensual</h3><div class="kpi-value" id="simPagoMensual">$0</div></div>
+                </div>
+                <div class="kpi-card success">
+                    <div><h3>Meses para recuperar</h3><div class="kpi-value" id="simMesesRetorno">0</div></div>
+                </div>
+                <div class="kpi-card warning">
+                    <div><h3>ROI Anual</h3><div class="kpi-value" id="simROIAnual">0%</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de pagos -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-bar"></i> Pagos Mensuales a Inversionistas</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="pagosInversionistasChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Inversionista -->
+<div class="modal" id="inversionistaModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Nuevo Inversionista</h2>
+            <button class="modal-close" onclick="closeInversionistaModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="inversionistaId">
+            <div class="form-row">
+                <div class="form-group"><label>Nombre *</label><input type="text" id="invNombre" class="form-control"></div>
+                <div class="form-group"><label>Email</label><input type="email" id="invEmail" class="form-control"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Teléfono</label><input type="tel" id="invTelefono" class="form-control"></div>
+                <div class="form-group"><label>Monto Inicial *</label><input type="number" id="invMonto" class="form-control"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Comisión Mensual (%)</label><input type="number" id="invComision" class="form-control" value="5" step="0.5"></div>
+                <div class="form-group"><label>Fecha Inversión</label><input type="date" id="invFecha" class="form-control"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeInversionistaModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveInversionista()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Pago a Inversionista -->
+<div class="modal" id="pagoInversionistaModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Registrar Pago a Inversionista</h2>
+            <button class="modal-close" onclick="closePagoInversionistaModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="pagoInvId">
+            <div class="form-group">
+                <label>Monto</label>
+                <input type="number" id="pagoInvMonto" class="form-control">
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Mes</label><input type="number" id="pagoInvMes" class="form-control" min="1" max="12"></div>
+                <div class="form-group"><label>Año</label><input type="number" id="pagoInvAño" class="form-control" value="2024"></div>
+            </div>
+            <div class="form-group">
+                <label>Método de Pago</label>
+                <select id="pagoInvMetodo" class="form-control">
+                    <option value="transferencia">Transferencia</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="cheque">Cheque</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closePagoInversionistaModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="registrarPagoInversionista()">Registrar Pago</button>
+        </div>
+    </div>
+</div>
 <!-- Modal: Paciente -->
 <div class="modal" id="patientModal">
     <div class="modal-content">
