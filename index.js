@@ -317,43 +317,87 @@ app.put('/api/planes/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// ENDPOINTS DE SERVICIOS EXTERNOS
+// ============================================================
 
-// ============================================================
-// 9. SERVICIOS EXTERNOS
-// ============================================================
+// Obtener todos los servicios
 app.get('/api/servicios', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM servicios_externos ORDER BY fecha_vencimiento');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const result = await pool.query(`
+            SELECT * FROM servicios 
+            ORDER BY fecha_vencimiento ASC, created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error en GET /api/servicios:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
+// Crear un nuevo servicio
 app.post('/api/servicios', async (req, res) => {
-  const { nombre, proveedor, monto, fecha_vencimiento } = req.body;
-  try {
-    const result = await pool.query(
-      `INSERT INTO servicios_externos (nombre, proveedor, monto, fecha_vencimiento)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [nombre, proveedor, monto, fecha_vencimiento]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const { nombre, proveedor, monto, fecha_vencimiento } = req.body;
+    
+    if (!nombre) {
+        return res.status(400).json({ error: 'El nombre del servicio es requerido' });
+    }
+    
+    try {
+        const result = await pool.query(`
+            INSERT INTO servicios (nombre, proveedor, monto, fecha_vencimiento, pagado)
+            VALUES ($1, $2, $3, $4, false)
+            RETURNING *
+        `, [nombre, proveedor, monto, fecha_vencimiento]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error en POST /api/servicios:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
+// Marcar servicio como pagado
 app.put('/api/servicios/:id/pagar', async (req, res) => {
-  try {
-    await pool.query(
-      'UPDATE servicios_externos SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = $1',
-      [req.params.id]
-    );
-    res.json({ message: 'Servicio marcado como pagado' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const servicioId = req.params.id;
+    
+    try {
+        const result = await pool.query(`
+            UPDATE servicios 
+            SET pagado = true 
+            WHERE id = $1 
+            RETURNING *
+        `, [servicioId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Servicio no encontrado' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error en PUT /api/servicios/:id/pagar:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar servicio
+app.delete('/api/servicios/:id', async (req, res) => {
+    const servicioId = req.params.id;
+    
+    try {
+        const result = await pool.query(`
+            DELETE FROM servicios WHERE id = $1 RETURNING *
+        `, [servicioId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Servicio no encontrado' });
+        }
+        
+        res.json({ message: 'Servicio eliminado correctamente' });
+    } catch (error) {
+        console.error('Error en DELETE /api/servicios/:id:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================================
