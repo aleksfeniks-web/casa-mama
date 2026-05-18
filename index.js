@@ -408,6 +408,90 @@ app.post('/api/inversionistas/:id/pagos', async (req, res) => {
     }
 });
 
+async function calcularROI() {
+    showLoading(true);
+    try {
+        const data = await apiFetch('/api/calcular-roi');
+        
+        // Mostrar resumen actual más compacto
+        const resumenHtml = `
+            <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                <div class="kpi-card" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">Utilidad Mensual</h3>
+                    <div class="kpi-value" style="font-size: 1.2em; color: ${data.utilidad_mensual >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(data.utilidad_mensual)}</div>
+                </div>
+                <div class="kpi-card" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">Ingreso Mensual</h3>
+                    <div class="kpi-value" style="font-size: 1.2em;">${formatCurrency(data.ingreso_mensual)}</div>
+                </div>
+                <div class="kpi-card" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">Costo Mensual</h3>
+                    <div class="kpi-value" style="font-size: 1.2em;">${formatCurrency(data.costo_mensual)}</div>
+                </div>
+            </div>
+        `;
+        
+        // Mostrar proyecciones en tabs
+        let tabsHtml = '<ul class="tabs" style="display: flex; gap: 10px; border-bottom: 1px solid #e2e8f0; margin-bottom: 15px; padding: 0;">';
+        let contentHtml = '';
+        
+        data.inversionistas.forEach((inv, idx) => {
+            const proyeccionesInv = data.proyecciones.filter(p => p.inversionista_id === inv.id);
+            tabsHtml += `<li style="list-style: none; padding: 8px 16px; cursor: pointer; ${idx === 0 ? 'border-bottom: 2px solid #2563eb; font-weight: 600;' : ''}" onclick="showInversionistaTab(${idx})">${inv.nombre}</li>`;
+            
+            contentHtml += `<div class="tab-content" id="tab-${idx}" style="${idx === 0 ? 'display: block;' : 'display: none;'}">
+                <div class="table-responsive">
+                    <table class="table" style="font-size: 0.8em;">
+                        <thead>
+                            <tr><th>% Mensual</th><th>Pago Mensual</th><th>Meses a retornar</th><th>Retorno Anual</th><th>ROI Anual</th></tr>
+                        </thead>
+                        <tbody>
+                            ${proyeccionesInv.map(p => `
+                                <tr>
+                                    <td><strong>${p.porcentaje}%</strong></td>
+                                    <td>${formatCurrency(p.pago_mensual)}</td>
+                                    <td>${p.meses_retorno} meses</td>
+                                    <td>${formatCurrency(p.retorno_anual)}</td>
+                                    <td class="${p.roi_anual >= 60 ? 'text-success' : ''}">${p.roi_anual.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        });
+        tabsHtml += '</ul>';
+        
+        document.getElementById('roiProyecciones').innerHTML = resumenHtml + tabsHtml + contentHtml;
+        document.getElementById('roiCard').style.display = 'block';
+        
+        // Abrir el contenido por defecto
+        document.getElementById('roiContent').style.display = 'block';
+        
+        showToast('Cálculo de ROI completado');
+    } catch(e) {
+        showToast('Error al calcular ROI: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Función para cambiar entre tabs de inversionistas
+function showInversionistaTab(idx) {
+    document.querySelectorAll('[id^="tab-"]').forEach(tab => tab.style.display = 'none');
+    document.getElementById(`tab-${idx}`).style.display = 'block';
+    
+    document.querySelectorAll('.tabs li').forEach((li, i) => {
+        if (i === idx) {
+            li.style.borderBottom = '2px solid #2563eb';
+            li.style.fontWeight = '600';
+        } else {
+            li.style.borderBottom = 'none';
+            li.style.fontWeight = 'normal';
+        }
+    });
+}
+
 // Calcular ROI y proyecciones
 app.get('/api/calcular-roi', async (req, res) => {
     try {
