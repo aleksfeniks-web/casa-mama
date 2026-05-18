@@ -749,7 +749,6 @@ app.get('/api/dashboard-inversiones', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ============================================================
 // ENDPOINTS DE MEDICAMENTOS
 // ============================================================
@@ -796,9 +795,16 @@ app.get('/api/pacientes/:id/medicamentos', async (req, res) => {
     
     try {
         const result = await pool.query(`
-            SELECT pm.*, mc.nombre as medicamento_nombre, mc.presentacion
+            SELECT 
+                pm.id,
+                pm.paciente_id,
+                pm.medicamento_id,
+                pm.medicamento_nombre,
+                pm.dosis,
+                pm.horario,
+                pm.activo,
+                pm.created_at
             FROM paciente_medicamentos pm
-            LEFT JOIN medicamentos_catalogo mc ON pm.medicamento_id = mc.id
             WHERE pm.paciente_id = $1 AND pm.activo = true
             ORDER BY pm.created_at DESC
         `, [pacienteId]);
@@ -859,6 +865,10 @@ app.post('/api/pacientes/:id/medicamentos', async (req, res) => {
 app.post('/api/medicamentos/aplicar', async (req, res) => {
     const { paciente_medicamento_id, aplicado } = req.body;
     
+    if (!paciente_medicamento_id) {
+        return res.status(400).json({ error: 'Se requiere paciente_medicamento_id' });
+    }
+    
     try {
         // Crear registro de aplicación
         const result = await pool.query(`
@@ -866,7 +876,7 @@ app.post('/api/medicamentos/aplicar', async (req, res) => {
             (paciente_medicamento_id, fecha_aplicacion, aplicado)
             VALUES ($1, NOW(), $2)
             RETURNING *
-        `, [paciente_medicamento_id, aplicado]);
+        `, [paciente_medicamento_id, aplicado !== false]);
         
         res.json(result.rows[0]);
     } catch (error) {
