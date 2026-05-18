@@ -8,6 +8,50 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <style>
+
+        /* Estilos específicos para página de inversiones */
+#page-inversiones {
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    padding-bottom: 30px;
+}
+
+#page-inversiones .kpi-grid {
+    margin-bottom: 20px;
+}
+
+#page-inversiones .card {
+    margin-bottom: 20px;
+    break-inside: avoid;
+}
+
+/* Contenedor para tablas con scroll horizontal si es necesario */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Tarjetas más compactas en inversiones */
+#page-inversiones .card-header {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+
+#page-inversiones .card-header h3 {
+    font-size: 1.1em;
+}
+
+/* Tablas más compactas */
+#page-inversiones .table th,
+#page-inversiones .table td {
+    padding: 8px 10px;
+    font-size: 0.85em;
+}
+
+/* Ajuste de gráfico */
+#page-inversiones .chart-container {
+    height: 250px;
+}
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
@@ -1142,110 +1186,122 @@
 </div>
 
     
-    <!-- Inversiones Page -->
+    <!-- Inversiones Page - Versión optimizada -->
 <div id="page-inversiones" class="page" style="display:none;">
-    <div class="page-header">
+    <div class="page-header" style="position: sticky; top: 0; background: transparent; z-index: 10; padding-bottom: 10px;">
         <h1 class="page-title"><i class="fas fa-chart-line"></i> Inversiones y ROI</h1>
-        <div>
-            <button class="btn btn-primary" onclick="openInversionistaModal()">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="openInversionistaModal()" style="padding: 8px 16px; font-size: 0.85em;">
                 <i class="fas fa-user-plus"></i> Nuevo Inversionista
             </button>
-            <button class="btn btn-success" onclick="calcularROI()">
+            <button class="btn btn-success" onclick="calcularROI()" style="padding: 8px 16px; font-size: 0.85em;">
                 <i class="fas fa-calculator"></i> Calcular ROI
             </button>
         </div>
     </div>
 
-    <!-- KPIs de inversiones -->
-    <div class="kpi-grid" id="inversionKPIs">
-        <div class="kpi-card">
+    <!-- KPIs de inversiones - Grid compacto -->
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;" id="inversionKPIs">
+        <div class="kpi-card" style="padding: 15px;">
             <div class="kpi-content">
-                <div><h3>Inversión Total</h3><div class="kpi-value" id="totalInversion">$0</div></div>
-                <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
+                <div><h3 style="font-size: 0.7em;">Inversión Total</h3><div class="kpi-value" style="font-size: 1.5em;" id="totalInversion">$0</div></div>
+                <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 1.2em;"><i class="fas fa-dollar-sign"></i></div>
             </div>
         </div>
-        <div class="kpi-card success">
+        <div class="kpi-card success" style="padding: 15px;">
             <div class="kpi-content">
-                <div><h3>Pagado a Inversionistas</h3><div class="kpi-value" id="totalPagado">$0</div></div>
-                <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                <div><h3 style="font-size: 0.7em;">Pagado a Inversionistas</h3><div class="kpi-value" style="font-size: 1.5em;" id="totalPagado">$0</div></div>
+                <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 1.2em;"><i class="fas fa-hand-holding-usd"></i></div>
             </div>
         </div>
-        <div class="kpi-card warning">
+        <div class="kpi-card warning" style="padding: 15px;">
             <div class="kpi-content">
-                <div><h3>Pendiente por Pagar</h3><div class="kpi-value" id="totalPendiente">$0</div></div>
-                <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+                <div><h3 style="font-size: 0.7em;">Pendiente por Pagar</h3><div class="kpi-value" style="font-size: 1.5em;" id="totalPendiente">$0</div></div>
+                <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 1.2em;"><i class="fas fa-clock"></i></div>
             </div>
         </div>
-        <div class="kpi-card info">
+        <div class="kpi-card info" style="padding: 15px;">
             <div class="kpi-content">
-                <div><h3>Pacientes Actuales</h3><div class="kpi-value" id="pacientesActuales">0</div></div>
-                <div class="kpi-icon"><i class="fas fa-users"></i></div>
+                <div><h3 style="font-size: 0.7em;">Pacientes Actuales</h3><div class="kpi-value" style="font-size: 1.5em;" id="pacientesActuales">0</div></div>
+                <div class="kpi-icon" style="width: 40px; height: 40px; font-size: 1.2em;"><i class="fas fa-users"></i></div>
             </div>
         </div>
     </div>
 
     <!-- Tabla de Inversionistas -->
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-users"></i> Inversionistas</h3>
+    <div class="card" style="padding: 15px;">
+        <div class="card-header" style="margin-bottom: 10px;">
+            <h3 style="font-size: 1em;"><i class="fas fa-users"></i> Inversionistas</h3>
         </div>
-        <table class="table" id="inversionistasTable">
-            <thead>
-                <tr><th>Nombre</th><th>Inversión</th><th>Comisión %</th><th>Pago Mensual</th><th>Pagado Total</th><th>Fecha</th><th>Acciones</th></tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table" id="inversionistasTable" style="width: 100%;">
+                <thead>
+                    <tr style="font-size: 0.8em;">
+                        <th>Nombre</th><th>Inversión</th><th>Comisión</th><th>Pago Mensual</th><th>Pagado</th><th>Fecha</th><th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Proyecciones de ROI -->
-    <div class="card" id="roiCard" style="display: none;">
-        <div class="card-header">
-            <h3><i class="fas fa-chart-line"></i> Proyecciones de Retorno de Inversión</h3>
+    <!-- Proyecciones de ROI (colapsable) -->
+    <div class="card" id="roiCard" style="display: none; padding: 15px;">
+        <div class="card-header" style="cursor: pointer; margin-bottom: 0;" onclick="toggleRoiContent()">
+            <h3 style="font-size: 1em; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-chart-line"></i> Proyecciones de Retorno de Inversión</span>
+                <i class="fas fa-chevron-down" id="roiToggleIcon"></i>
+            </h3>
         </div>
-        <div id="roiProyecciones"></div>
+        <div id="roiContent" style="display: none; margin-top: 15px;">
+            <div id="roiProyecciones"></div>
+        </div>
     </div>
 
-    <!-- Simulador de ROI -->
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-sliders-h"></i> Simulador de ROI</h3>
+    <!-- Simulador de ROI - Compacto -->
+    <div class="card" style="padding: 15px;">
+        <div class="card-header" style="margin-bottom: 10px;">
+            <h3 style="font-size: 1em;"><i class="fas fa-sliders-h"></i> Simulador de ROI</h3>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Monto a Invertir</label>
-                <input type="number" id="simMonto" class="form-control" placeholder="Ej: 500000">
+        <div class="form-row" style="grid-template-columns: 1fr 1fr auto; gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-size: 0.75em;">Monto a Invertir</label>
+                <input type="number" id="simMonto" class="form-control" placeholder="Ej: 500000" style="padding: 8px; font-size: 0.85em;">
             </div>
-            <div class="form-group">
-                <label>Porcentaje Mensual (%)</label>
-                <input type="number" id="simPorcentaje" class="form-control" placeholder="Ej: 5" step="0.5">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-size: 0.75em;">% Mensual</label>
+                <input type="number" id="simPorcentaje" class="form-control" placeholder="Ej: 5" step="0.5" style="padding: 8px; font-size: 0.85em;">
             </div>
-            <div class="form-group" style="display: flex; align-items: flex-end;">
-                <button class="btn btn-primary" onclick="simularROI()">
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                <button class="btn btn-primary" onclick="simularROI()" style="padding: 8px 16px; font-size: 0.85em;">
                     <i class="fas fa-calculator"></i> Simular
                 </button>
             </div>
         </div>
-        <div id="simulacionResultado" style="margin-top: 20px; display: none;">
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div><h3>Pago Mensual</h3><div class="kpi-value" id="simPagoMensual">$0</div></div>
+        <div id="simulacionResultado" style="margin-top: 15px; display: none;">
+            <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div class="kpi-card" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">Pago Mensual</h3>
+                    <div class="kpi-value" style="font-size: 1.2em;" id="simPagoMensual">$0</div>
                 </div>
-                <div class="kpi-card success">
-                    <div><h3>Meses para recuperar</h3><div class="kpi-value" id="simMesesRetorno">0</div></div>
+                <div class="kpi-card success" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">Meses para recuperar</h3>
+                    <div class="kpi-value" style="font-size: 1.2em;" id="simMesesRetorno">0</div>
                 </div>
-                <div class="kpi-card warning">
-                    <div><h3>ROI Anual</h3><div class="kpi-value" id="simROIAnual">0%</div></div>
+                <div class="kpi-card warning" style="padding: 10px;">
+                    <h3 style="font-size: 0.7em;">ROI Anual</h3>
+                    <div class="kpi-value" style="font-size: 1.2em;" id="simROIAnual">0%</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Gráfico de pagos -->
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-chart-bar"></i> Pagos Mensuales a Inversionistas</h3>
+    <!-- Gráfico de pagos - Compacto -->
+    <div class="card" style="padding: 15px;">
+        <div class="card-header" style="margin-bottom: 10px;">
+            <h3 style="font-size: 1em;"><i class="fas fa-chart-bar"></i> Pagos Mensuales a Inversionistas</h3>
         </div>
-        <div class="chart-container">
+        <div class="chart-container" style="height: 200px;">
             <canvas id="pagosInversionistasChart"></canvas>
         </div>
     </div>
