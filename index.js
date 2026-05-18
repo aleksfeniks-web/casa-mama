@@ -292,18 +292,30 @@ app.get('/api/planes', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// Actualizar plan
 app.put('/api/planes/:id', async (req, res) => {
-  const { nombre, precio_mensual, descripcion } = req.body;
-  try {
-    await pool.query(
-      'UPDATE planes SET nombre = $1, precio_mensual = $2, descripcion = $3 WHERE id = $4',
-      [nombre, precio_mensual, descripcion, req.params.id]
-    );
-    res.json({ message: 'Plan actualizado' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const planId = req.params.id;
+    const { nombre, precio_mensual, descripcion } = req.body;
+    
+    try {
+        const result = await pool.query(`
+            UPDATE planes 
+            SET nombre = COALESCE($1, nombre),
+                precio_mensual = COALESCE($2, precio_mensual),
+                descripcion = COALESCE($3, descripcion)
+            WHERE id = $4
+            RETURNING *
+        `, [nombre, precio_mensual, descripcion, planId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Plan no encontrado' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al actualizar plan:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================================
