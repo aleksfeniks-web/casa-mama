@@ -591,7 +591,7 @@ function showInversionistaTab(idx) {
     });
 }
 
-// Calcular ROI y proyecciones
+/ Calcular ROI y proyecciones
 app.get('/api/calcular-roi', async (req, res) => {
     try {
         // Obtener datos actuales
@@ -606,10 +606,14 @@ app.get('/api/calcular-roi', async (req, res) => {
         const configResult = await pool.query(`
             SELECT valor FROM configuracion WHERE clave = 'costos'
         `);
-        const config = configResult.rows[0]?.valor || {};
-        const costs = typeof config === 'string' ? JSON.parse(config) : config;
+        let config = { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 };
         
-        // Calcular ingresos y utilidad
+        if (configResult.rows.length > 0) {
+            const costs = configResult.rows[0].valor;
+            config = typeof costs === 'string' ? JSON.parse(costs) : costs;
+        }
+        
+        // Calcular ingresos por planes
         const planesResult = await pool.query(`
             SELECT plan_id, COUNT(*) as cantidad
             FROM patients
@@ -619,16 +623,19 @@ app.get('/api/calcular-roi', async (req, res) => {
         
         let ingresoTotal = 0;
         for (const row of planesResult.rows) {
-            const planPrecio = row.plan_id === 1 ? 8000 : row.plan_id === 2 ? 12000 : 16000;
-            ingresoTotal += row.cantidad * planPrecio;
+            let planPrecio = 12000; // default Intermedio
+            if (row.plan_id === 1) planPrecio = 8000;
+            else if (row.plan_id === 2) planPrecio = 12000;
+            else if (row.plan_id === 3) planPrecio = 16000;
+            ingresoTotal += parseInt(row.cantidad) * planPrecio;
         }
         
-        const totalCostos = (costs.personal || 52500) + 
-                           (costs.food || 30000) + 
-                           (costs.medical || 20000) + 
-                           (costs.utilities || 10000) + 
-                           (costs.supplies || 6500) + 
-                           (costs.insurance || 4000);
+        const totalCostos = (config.personal || 52500) + 
+                           (config.food || 30000) + 
+                           (config.medical || 20000) + 
+                           (config.utilities || 10000) + 
+                           (config.supplies || 6500) + 
+                           (config.insurance || 4000);
         
         const utilidadMensual = ingresoTotal - totalCostos;
         
@@ -652,7 +659,7 @@ app.get('/api/calcular-roi', async (req, res) => {
                 proyecciones.push({
                     inversionista_id: inv.id,
                     inversionista_nombre: inv.nombre,
-                    monto_inicial: inv.monto_inicial,
+                    monto_inicial: parseFloat(inv.monto_inicial),
                     porcentaje: porcentaje,
                     pago_mensual: pagoMensual,
                     meses_retorno: mesesRetorno,
@@ -679,38 +686,46 @@ app.get('/api/calcular-roi', async (req, res) => {
 // Obtener dashboard de inversiones (solo superadmin)
 app.get('/api/dashboard-inversiones', async (req, res) => {
     try {
-        // Obtener resumen de inversiones
+        // Obtener resumen de inversionistas
         const inversionistas = await pool.query(`
             SELECT 
                 i.*,
-                COALESCE(SUM(pi.monto), 0) as pagado_total,
+                COALESCE(SUM(pi.monto), 0) as total_pagado,
                 COUNT(pi.id) as num_pagos
             FROM inversionistas i
             LEFT JOIN pagos_inversionistas pi ON i.id = pi.inversionista_id
             WHERE i.activo = true
             GROUP BY i.id
+            ORDER BY i.fecha_inversion DESC
         `);
         
-        // Obtener pagos por mes
+        // Obtener pagos por mes - CORREGIDO: agregar GROUP BY correcto
         const pagosPorMes = await pool.query(`
             SELECT 
                 EXTRACT(YEAR FROM fecha_pago) as año,
                 EXTRACT(MONTH FROM fecha_pago) as mes,
                 SUM(monto) as total_pagado
             FROM pagos_inversionistas
-            GROUP BY año, mes
+            GROUP BY EXTRACT(YEAR FROM fecha_pago), EXTRACT(MONTH FROM fecha_pago)
             ORDER BY año DESC, mes DESC
             LIMIT 12
         `);
         
-        // Calcular ROI total del negocio
+        // Calcular resumen
         const pacientes = await pool.query(`SELECT COUNT(*) as total FROM patients WHERE status = 'active'`);
         const inversionTotal = await pool.query(`SELECT COALESCE(SUM(monto_inicial), 0) as total FROM inversionistas WHERE activo = true`);
         const pagadoTotal = await pool.query(`SELECT COALESCE(SUM(monto), 0) as total FROM pagos_inversionistas`);
         
+        // Formatear pagos por mes para el frontend
+        const pagosFormateados = pagosPorMes.rows.map(row => ({
+            año: parseInt(row.año),
+            mes: parseInt(row.mes),
+            total_pagado: parseFloat(row.total_pagado)
+        }));
+        
         res.json({
             inversionistas: inversionistas.rows,
-            pagos_por_mes: pagosPorMes.rows,
+            pagos_por_mes: pagosFormateados,
             resumen: {
                 total_inversionistas: inversionistas.rows.length,
                 inversion_total: parseFloat(inversionTotal.rows[0].total),
@@ -724,6 +739,7 @@ app.get('/api/dashboard-inversiones', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // ============================================================
 // ENDPOINTS DE MEDICAMENTOS
 // ============================================================
