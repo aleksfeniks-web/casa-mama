@@ -806,7 +806,99 @@
     flex-wrap: wrap;
     gap: 15px;
 }
+/* Estilos para línea de tiempo de historia clínica */
+.timeline-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 
+.timeline-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: var(--light);
+    border-radius: 16px;
+    transition: all 0.3s;
+    border-left: 4px solid var(--primary);
+}
+
+.timeline-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.timeline-date {
+    min-width: 100px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.timeline-content {
+    flex: 1;
+}
+
+.timeline-diagnosis {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.timeline-vitals {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 0.85em;
+    color: var(--gray);
+}
+
+.vital-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: white;
+}
+
+.vital-normal {
+    color: #10b981;
+}
+
+.vital-warning {
+    color: #f59e0b;
+}
+
+.vital-danger {
+    color: #ef4444;
+}
+
+/* Tarjetas de paciente */
+.patient-info-card {
+    background: white;
+    padding: 15px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.patient-info-card i {
+    font-size: 1.5em;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+.patient-info-card .label {
+    font-size: 0.7em;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.patient-info-card .value {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-top: 5px;
+}
         
     </style>
 </head>
