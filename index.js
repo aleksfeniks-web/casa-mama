@@ -403,6 +403,60 @@ async function loadInversionistas() {
         showToast('Error al cargar inversionistas: ' + e.message, 'error');
     }
 }
+
+async function loadDashboardInversiones() {
+    try {
+        console.log('Cargando dashboard inversiones...');
+        const data = await apiFetch('/api/dashboard-inversiones');
+        console.log('Dashboard data:', data);
+        
+        // Actualizar KPIs
+        const totalInversionEl = document.getElementById('totalInversion');
+        const totalPagadoEl = document.getElementById('totalPagado');
+        const totalPendienteEl = document.getElementById('totalPendiente');
+        const pacientesActualesEl = document.getElementById('pacientesActuales');
+        
+        if (totalInversionEl) totalInversionEl.textContent = formatCurrency(data.resumen?.inversion_total || 0);
+        if (totalPagadoEl) totalPagadoEl.textContent = formatCurrency(data.resumen?.pagado_acumulado || 0);
+        if (totalPendienteEl) totalPendienteEl.textContent = formatCurrency(data.resumen?.pendiente_por_pagar || 0);
+        if (pacientesActualesEl) pacientesActualesEl.textContent = data.resumen?.pacientes_actuales || 0;
+        
+        // Actualizar gráfico si hay datos
+        if (data.pagos_por_mes && data.pagos_por_mes.length > 0) {
+            if (inversionistasChart) inversionistasChart.destroy();
+            const ctx = document.getElementById('pagosInversionistasChart')?.getContext('2d');
+            if (ctx) {
+                const labels = data.pagos_por_mes.map(p => `${p.mes}/${p.año}`).reverse();
+                const values = data.pagos_por_mes.map(p => p.total_pagado).reverse();
+                inversionistasChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Pagos a Inversionistas',
+                            data: values,
+                            backgroundColor: '#10b981',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { callback: v => '$' + v.toLocaleString() }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    } catch(e) {
+        console.error('Error cargando dashboard inversiones:', e);
+        showToast('Error al cargar dashboard: ' + e.message, 'error');
+    }
+}
 // Crear inversionista
 app.post('/api/inversionistas', async (req, res) => {
     const { nombre, email, telefono, monto_inicial, porcentaje_comision, fecha_inversion } = req.body;
