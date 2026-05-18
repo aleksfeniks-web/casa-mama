@@ -2232,30 +2232,44 @@ function verificarLogin() {
 let inversionistasChart = null;
 
 // Cargar inversionistas
+// Cargar inversionistas
 async function loadInversionistas() {
     try {
         const inversionistas = await apiFetch('/api/inversionistas');
+        console.log('Inversionistas cargados:', inversionistas);
+        
         const tbody = document.querySelector('#inversionistasTable tbody');
         if (tbody) {
-            tbody.innerHTML = inversionistas.map(inv => `
-                <tr>
-                    <td><strong>${inv.nombre}</strong><br><small>${inv.email || ''}</small></td>
-                    <td>${formatCurrency(inv.monto_inicial)}</td
-                    <td>${inv.porcentaje_comision}%</td
-                    <td>${formatCurrency(inv.monto_inicial * (inv.porcentaje_comision / 100))}</td
-                    <td>${formatCurrency(inv.total_pagado || 0)}</td
-                    <td>${formatDate(inv.fecha_inversion)}</td
-                    <td>
-                        <button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})">
-                            <i class="fas fa-money-bill"></i> Pagar
-                        </button>
-                    </td
-                </tr>
-            `).join('');
+            if (inversionistas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay inversionistas registrados</td></tr>';
+            } else {
+                tbody.innerHTML = inversionistas.map(inv => {
+                    const pagoMensual = inv.monto_inicial * (inv.porcentaje_comision / 100);
+                    return `
+                        <tr>
+                            <td>
+                                <strong>${escapeHtml(inv.nombre)}</strong>
+                                ${inv.email ? `<br><small style="color:#666;">${escapeHtml(inv.email)}</small>` : ''}
+                            </td>
+                            <td>${formatCurrency(inv.monto_inicial)}</td>
+                            <td>${inv.porcentaje_comision}%</td>
+                            <td>${formatCurrency(pagoMensual)}</td>
+                            <td>${formatCurrency(inv.total_pagado || 0)}</td>
+                            <td>${formatDate(inv.fecha_inversion)}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})">
+                                    <i class="fas fa-money-bill"></i> Pagar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
         }
         await loadDashboardInversiones();
     } catch(e) {
         console.error('Error cargando inversionistas:', e);
+        showToast('Error al cargar inversionistas: ' + e.message, 'error');
     }
 }
 
