@@ -200,6 +200,19 @@ app.post('/api/pacientes/:id/historia', async (req, res) => {
   }
 });
 
+// Función para colapsar/expandir contenido de ROI
+function toggleRoiContent() {
+    const roiContent = document.getElementById('roiContent');
+    const roiIcon = document.getElementById('roiToggleIcon');
+    if (roiContent.style.display === 'none') {
+        roiContent.style.display = 'block';
+        roiIcon.className = 'fas fa-chevron-up';
+    } else {
+        roiContent.style.display = 'none';
+        roiIcon.className = 'fas fa-chevron-down';
+    }
+}
+
 // ============================================================
 // 7. MEDICAMENTOS
 // ============================================================
