@@ -2196,21 +2196,262 @@ function verificarLogin() {
             });
         } catch(e) { console.error('Error cargando selects de pacientes:', e); }
     }
+let signosChart = null;
+let currentSignoVisible = 'presion';
 
-    async function loadHistoriaPaciente() {
-        const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
-        if (!pacienteId) { document.getElementById('historiaContent').style.display = 'none'; return; }
-        showLoading(true);
-        try {
-            const paciente = await apiFetch(`/api/patients/${pacienteId}`);
-            const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
-            document.getElementById('pacienteInfo').innerHTML = `<p><strong>${paciente.name}</strong> | Edad: ${calcularEdad(paciente.birthdate)} años | Cama: ${paciente.cama_asignada || 'N/A'}</p>`;
-            document.getElementById('historialList').innerHTML = historial.length === 0 ? '<p>Sin registros clínicos</p>' :
-                `<table class="table"><thead><tr><th>Fecha</th><th>PA</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead><tbody>${historial.map(h => `<tr><td>${formatDate(h.fecha)}</td><td>${h.presion_arterial||'-'}</td><td>${h.frecuencia_cardiaca||'-'}</td><td>${h.temperatura||'-'}°C</td><td>${h.diagnostico?.substring(0,50)||'-'}</td></tr>`).join('')}</tbody></table>`;
-            document.getElementById('historiaContent').style.display = 'block';
-        } catch(err) { showToast(err.message, 'error'); }
-        finally { showLoading(false); }
+// Cargar historia clínica del paciente
+async function loadHistoriaPaciente() {
+    const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
+    if (!pacienteId) { 
+        document.getElementById('historiaContent').style.display = 'none';
+        return; 
     }
+    
+    showLoading(true);
+    try {
+        const paciente = await apiFetch(`/api/patients/${pacienteId}`);
+        const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+        
+        // Mostrar información del paciente en formato grid
+        const pacienteInfoDiv = document.getElementById('pacienteInfo');
+        if (pacienteInfoDiv) {
+            pacienteInfoDiv.innerHTML = `
+                <div class="patient-info-card">
+                    <i class="fas fa-user"></i>
+                    <div class="label">Nombre</div>
+                    <div class="value">${escapeHtml(paciente.name) || 'N/A'}</div>
+                </div>
+                <div class="patient-info-card">
+                    <i class="fas fa-calendar"></i>
+                    <div class="label">Edad</div>
+                    <div class="value">${calcularEdad(paciente.birthdate)} años</div>
+                </div>
+                <div class="patient-info-card">
+                    <i class="fas fa-bed"></i>
+                    <div class="label">Cama</div>
+                    <div class="value">${paciente.cama_asignada || 'N/A'}</div>
+                </div>
+                <div class="patient-info-card">
+                    <i class="fas fa-tag"></i>
+                    <div class="label">Plan</div>
+                    <div class="value">${paciente.plan_id == 1 ? 'Básico' : paciente.plan_id == 2 ? 'Intermedio' : 'Más'}</div>
+                </div>
+            `;
+        }
+        
+        // Mostrar línea de tiempo de registros
+        const historialListDiv = document.getElementById('historialList');
+        if (historialListDiv) {
+            if (historial.length === 0) {
+                historialListDiv.innerHTML = '<div class="empty-state"><i class="fas fa-notes-medical"></i><p>No hay registros clínicos</p></div>';
+            } else {
+                historialListDiv.innerHTML = historial.slice(0, 5).map(h => {
+                    // Determinar estado de signos vitales
+                    const paStatus = h.presion_arterial ? getPresionStatus(h.presion_arterial) : null;
+                    const fcStatus = h.frecuencia_cardiaca ? getFCStatus(h.frecuencia_cardiaca) : null;
+                    const tempStatus = h.temperatura ? getTempStatus(h.temperatura) : null;
+                    
+                    return `
+                        <div class="timeline-item">
+                            <div class="timeline-date">
+                                <i class="fas fa-calendar-day"></i><br>
+                                ${formatDate(h.fecha)}
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-diagnosis">
+                                    <i class="fas fa-stethoscope"></i> ${h.diagnostico || 'Sin diagnóstico'}
+                                </div>
+                                ${h.tratamiento ? `<div class="timeline-treatment"><i class="fas fa-prescription-bottle"></i> ${h.tratamiento.substring(0, 100)}${h.tratamiento.length > 100 ? '...' : ''}</div>` : ''}
+                                <div class="timeline-vitals">
+                                    ${h.presion_arterial ? `<span class="vital-badge ${paStatus}"><i class="fas fa-heartbeat"></i> ${h.presion_arterial} mmHg</span>` : ''}
+                                    ${h.frecuencia_cardiaca ? `<span class="vital-badge ${fcStatus}"><i class="fas fa-heart"></i> ${h.frecuencia_cardiaca} lpm</span>` : ''}
+                                    ${h.temperatura ? `<span class="vital-badge ${tempStatus}"><i class="fas fa-thermometer-half"></i> ${h.temperatura}°C</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (historial.length > 5) {
+                    historialListDiv.innerHTML += `<div class="text-center" style="margin-top: 10px;"><small>+ ${historial.length - 5} registros más (ver tabla completa)</small></div>`;
+                }
+            }
+        }
+        
+        // Llenar tabla de historial completo
+        const tableBody = document.querySelector('#historialTable tbody');
+        if (tableBody) {
+            tableBody.innerHTML = historial.map(h => `
+                <tr>
+                    <td>${formatDate(h.fecha)}</td
+                    <td>${h.presion_arterial || '-'}</td
+                    <td>${h.frecuencia_cardiaca || '-'}</td
+                    <td>${h.temperatura ? h.temperatura + '°C' : '-'}</td
+                    <td>${h.diagnostico?.substring(0, 50) || '-'}</td
+                    <td>${h.tratamiento?.substring(0, 50) || '-'}</td
+                </tr>
+            `).join('');
+        }
+        
+        // Actualizar gráfica de signos vitales
+        updateSignosChart(historial);
+        
+        document.getElementById('historiaContent').style.display = 'block';
+        
+    } catch(err) { 
+        showToast(err.message, 'error'); 
+    } finally { 
+        showLoading(false); 
+    }
+}
+
+// Funciones para determinar estado de signos vitales
+function getPresionStatus(presion) {
+    const [sistolica, diastolica] = presion.split('/').map(Number);
+    if (sistolica >= 140 || diastolica >= 90) return 'vital-danger';
+    if (sistolica >= 120 || diastolica >= 80) return 'vital-warning';
+    return 'vital-normal';
+}
+
+function getFCStatus(fc) {
+    if (fc > 100 || fc < 60) return 'vital-danger';
+    if (fc > 90 || fc < 65) return 'vital-warning';
+    return 'vital-normal';
+}
+
+function getTempStatus(temp) {
+    if (temp > 38 || temp < 36) return 'vital-danger';
+    if (temp > 37.5 || temp < 36.2) return 'vital-warning';
+    return 'vital-normal';
+}
+
+// Actualizar gráfica de signos vitales
+function updateSignosChart(historial) {
+    const ctx = document.getElementById('signosVitalesChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    // Preparar datos
+    const fechas = historial.map(h => formatDate(h.fecha));
+    const presionesSistolica = historial.map(h => {
+        if (!h.presion_arterial) return null;
+        const [sistolica] = h.presion_arterial.split('/').map(Number);
+        return sistolica;
+    });
+    const frecuencias = historial.map(h => h.frecuencia_cardiaca || null);
+    const temperaturas = historial.map(h => h.temperatura || null);
+    
+    // Destruir gráfico anterior si existe
+    if (signosChart) signosChart.destroy();
+    
+    // Configurar datasets según lo seleccionado
+    let datasets = [];
+    if (currentSignoVisible === 'presion') {
+        datasets = [{
+            label: 'Presión Sistólica (mmHg)',
+            data: presionesSistolica,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            fill: true
+        }];
+    } else if (currentSignoVisible === 'frecuencia') {
+        datasets = [{
+            label: 'Frecuencia Cardíaca (lpm)',
+            data: frecuencias,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+        }];
+    } else if (currentSignoVisible === 'temperatura') {
+        datasets = [{
+            label: 'Temperatura (°C)',
+            data: temperaturas,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            fill: true
+        }];
+    }
+    
+    signosChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fechas,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+                y: { beginAtZero: false, grid: { color: '#e2e8f0' } }
+            }
+        }
+    });
+}
+
+// Cambiar el signo vital mostrado en la gráfica
+function toggleSignoVital(tipo) {
+    currentSignoVisible = tipo;
+    const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
+    if (pacienteId) {
+        cargarHistoriaPacienteParaGrafica(pacienteId);
+    }
+}
+
+async function cargarHistoriaPacienteParaGrafica(pacienteId) {
+    try {
+        const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+        updateSignosChart(historial);
+    } catch(err) {
+        console.error('Error cargando datos para gráfica:', err);
+    }
+}
+
+// Exportar historial a CSV
+function exportarHistorialCSV() {
+    const table = document.getElementById('historialTable');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tr');
+    const csvData = [];
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('th, td');
+        const rowData = Array.from(cols).map(col => col.textContent.trim());
+        csvData.push(rowData.join(','));
+    });
+    
+    const blob = new Blob([csvData.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('Historial exportado a CSV');
+}
+
+// Modificar cargarPacientesSelects para incluir historiaPacienteSelect
+async function cargarPacientesSelects() {
+    try {
+        const pacientesList = await apiFetch('/api/patients');
+        const options = '<option value="">-- Seleccione un paciente --</option>' + 
+            pacientesList.map(p => `<option value="${p.id}">${escapeHtml(p.name)} - Cama ${p.cama_asignada || 'N/A'}</option>`).join('');
+        
+        ['historiaPacienteSelect', 'historiaPaciente', 'asignarPaciente', 'verMedicamentosPaciente', 'pagosPacienteSelect', 'pagoPaciente'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = options;
+        });
+    } catch(e) { 
+        console.error('Error cargando selects de pacientes:', e); 
+    }
+}
 
     function openHistoriaModal() {
         cargarPacientesSelects();
