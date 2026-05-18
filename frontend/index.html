@@ -1907,21 +1907,113 @@
         } catch(err) { showToast(err.message, 'error'); }
     }
 
-    async function loadEmpleados() {
-        try {
-            empleados = await apiFetch('/api/nomina/empleados');
-            const tbody = document.querySelector('#empleadosTable tbody');
-            if (tbody) tbody.innerHTML = empleados.map(e => `<tr><td>${e.nombre}</td><td>${e.puesto}</td><td>${formatCurrency(e.salario_base)}</td><td><button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">Eliminar</button></td></tr>`).join('');
-        } catch(e) { console.error(e); }
+   async function loadEmpleados() {
+    try {
+        empleados = await apiFetch('/api/nomina/empleados');
+        const tbody = document.querySelector('#empleadosTable tbody');
+        if (tbody) {
+            tbody.innerHTML = empleados.map(e => `
+                <tr>
+                    <td><strong>${e.nombre}</strong></td>
+                    <td>${e.puesto || '-'}</td>
+                    <td>${formatCurrency(e.salario_base)}</td>
+                    <td>
+                        <button class="btn btn-success btn-sm" onclick="generarNominaIndividual(${e.id})" style="margin-right: 8px;">
+                            <i class="fas fa-file-invoice-dollar"></i> Gen. Nómina
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch(e) { 
+        console.error('Error cargando empleados:', e);
+        showToast('Error al cargar empleados', 'error');
     }
+}
+
+// Nueva función: Generar nómina para un empleado específico
+async function generarNominaIndividual(empleadoId) {
+    try {
+        const empleados = await apiFetch('/api/nomina/empleados');
+        const empleado = empleados.find(e => e.id === empleadoId);
+        
+        if (!empleado) {
+            showToast('Empleado no encontrado', 'error');
+            return;
+        }
+        
+        const periodo = prompt('Ingrese el período (YYYY-MM):', new Date().toISOString().slice(0, 7));
+        if (!periodo) return;
+        
+        const confirmar = confirm(`Generar nómina para:\n${empleado.nombre}\nSalario: ${formatCurrency(empleado.salario_base)}\nPeríodo: ${periodo}\n\n¿Continuar?`);
+        
+        if (!confirmar) return;
+        
+        const nominaData = [{
+            id: empleado.id,
+            total: empleado.salario_base || 0
+        }];
+        
+        showLoading(true);
+        await apiFetch('/api/nomina/generar', { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                periodo: periodo + '-01',
+                empleados_nomina: nominaData 
+            }) 
+        });
+        showToast(`Nómina generada para ${empleado.nombre}`);
+        loadNominas();
+    } catch(err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
 
     async function loadNominas() {
-        try {
-            const nominas = await apiFetch('/api/nomina');
-            const tbody = document.querySelector('#nominasTable tbody');
-            if (tbody) tbody.innerHTML = nominas.map(n => `<tr><td>${formatDate(n.periodo)}</td><td>${n.empleado_nombre}</td><td>${formatCurrency(n.total)}</td><td><span class="badge ${n.pagado?'badge-success':'badge-warning'}">${n.pagado?'Pagado':'Pendiente'}</span></td><td><button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})">Pagar</button></td></tr>`).join('');
-        } catch(e) { console.error(e); }
+    try {
+        const nominas = await apiFetch('/api/nomina');
+        const tbody = document.querySelector('#nominasTable tbody');
+        if (tbody) {
+            if (nominas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay nóminas generadas</td></tr>';
+            } else {
+                tbody.innerHTML = nominas.map(n => `
+                    <tr>
+                        <td>${formatDate(n.periodo)}</td>
+                        <td><strong>${n.empleado_nombre}</strong><br><small style="color: #666;">${n.empleado_puesto || ''}</small></td>
+                        <td>${formatCurrency(n.total)}</td>
+                        <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td>
+                        <td>
+                            ${!n.pagado ? `<button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})"><i class="fas fa-money-bill"></i> Pagar</button>` : 
+                                          `<button class="btn btn-secondary btn-sm" onclick="verDetalleNomina(${n.id})"><i class="fas fa-eye"></i> Ver</button>`}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+    } catch(e) { 
+        console.error('Error cargando nóminas:', e);
+        showToast('Error al cargar nóminas', 'error');
     }
+}
+
+// Función para ver detalle de nómina
+async function verDetalleNomina(id) {
+    try {
+        const nominas = await apiFetch('/api/nomina');
+        const nomina = nominas.find(n => n.id === id);
+        if (nomina) {
+            alert(`Detalle de Nómina\n\nEmpleado: ${nomina.empleado_nombre}\nPeríodo: ${formatDate(nomina.periodo)}\nTotal: ${formatCurrency(nomina.total)}\nEstado: ${nomina.pagado ? 'Pagado' : 'Pendiente'}\nFecha de pago: ${nomina.fecha_pago ? formatDate(nomina.fecha_pago) : 'No pagado'}`);
+        }
+    } catch(e) {
+        showToast('Error al cargar detalle', 'error');
+    }
+}
 
     async function deleteEmpleado(id) {
         if (!confirm('¿Eliminar este empleado?')) return;
@@ -1951,13 +2043,111 @@
         catch(err) { showToast(err.message, 'error'); }
     }
 
-    async function generarNomina() {
-        const periodo = prompt('Ingrese el período (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
-        if (!periodo) return;
-        const nominaData = empleados.map(e => ({ id: e.id, total: e.salario_base }));
-        try { await apiFetch('/api/nomina/generar', { method: 'POST', body: JSON.stringify({ periodo, empleados_nomina: nominaData }) }); showToast('Nómina generada'); loadNominas(); }
-        catch(err) { showToast(err.message, 'error'); }
+    // Función mejorada para generar nómina
+async function generarNomina() {
+    // Primero, cargar empleados disponibles
+    try {
+        const empleados = await apiFetch('/api/nomina/empleados');
+        
+        if (empleados.length === 0) {
+            showToast('No hay empleados registrados', 'error');
+            return;
+        }
+        
+        // Crear un modal dinámico para seleccionar empleado
+        const empleadosList = empleados.map(emp => 
+            `<option value="${emp.id}">${emp.nombre} - ${emp.puesto} ($${emp.salario_base?.toLocaleString() || 0})</option>`
+        ).join('');
+        
+        // Mostrar prompt personalizado usando SweetAlert o confirm nativo mejorado
+        const empleadoId = await new Promise((resolve) => {
+            const selectHtml = `
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Seleccionar Empleado:</label>
+                    <select id="selectEmpleadoNomina" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc;">
+                        ${empleadosList}
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Período (Mes y Año):</label>
+                    <input type="month" id="periodoNomina" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc;" 
+                           value="${new Date().toISOString().slice(0, 7)}">
+                </div>
+            `;
+            
+            // Usar un modal simple
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); display: flex; align-items: center;
+                justify-content: center; z-index: 10000;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; padding: 24px; width: 400px; max-width: 90%;">
+                    <h3 style="margin-bottom: 20px;">Generar Nómina</h3>
+                    ${selectHtml}
+                    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                        <button id="cancelarNomina" style="padding: 8px 16px; border: 1px solid #ccc; border-radius: 8px; background: white; cursor: pointer;">Cancelar</button>
+                        <button id="confirmarNomina" style="padding: 8px 16px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; border: none; border-radius: 8px; cursor: pointer;">Generar</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            document.getElementById('confirmarNomina').onclick = () => {
+                const empleadoId = document.getElementById('selectEmpleadoNomina').value;
+                const periodo = document.getElementById('periodoNomina').value;
+                modal.remove();
+                resolve({ empleadoId, periodo });
+            };
+            
+            document.getElementById('cancelarNomina').onclick = () => {
+                modal.remove();
+                resolve(null);
+            };
+        });
+        
+        if (!empleadoId) return;
+        
+        // Encontrar el empleado seleccionado
+        const empleadoSeleccionado = empleados.find(e => e.id == empleadoId.empleadoId);
+        if (!empleadoSeleccionado) {
+            showToast('Empleado no encontrado', 'error');
+            return;
+        }
+        
+        // Confirmar el monto
+        const confirmar = confirm(`Generar nómina para:\n${empleadoSeleccionado.nombre}\nPuesto: ${empleadoSeleccionado.puesto}\nSalario: $${empleadoSeleccionado.salario_base?.toLocaleString()}\nPeríodo: ${empleadoId.periodo}\n\n¿Continuar?`);
+        
+        if (!confirmar) return;
+        
+        // Preparar datos para la API
+        const nominaData = [{
+            id: empleadoSeleccionado.id,
+            total: empleadoSeleccionado.salario_base || 0
+        }];
+        
+        showLoading(true);
+        try {
+            await apiFetch('/api/nomina/generar', { 
+                method: 'POST', 
+                body: JSON.stringify({ 
+                    periodo: empleadoId.periodo + '-01', // Primer día del mes
+                    empleados_nomina: nominaData 
+                }) 
+            });
+            showToast(`Nómina generada para ${empleadoSeleccionado.nombre}`);
+            loadNominas(); // Recargar la lista
+        } catch(err) {
+            showToast(err.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    } catch(err) {
+        showToast('Error al cargar empleados: ' + err.message, 'error');
     }
+}
 
     async function loadServicios() {
         try {
