@@ -235,33 +235,34 @@
         }
         .api-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
         .api-dot.offline { background: var(--danger); }
-
+ /* Main Content */
         .main-content {
-    max-height: 100vh;
-    overflow-y: auto;
-    scroll-behavior: smooth;
-}
+            flex: 1;
+            margin-left: 280px;
+            padding: 32px;
+            transition: margin-left 0.3s ease;
+        }
 
-/* Mejorar visibilidad de headers al hacer scroll */
-.page-header {
-    position: sticky;
-    top: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
-    border-radius: 0 0 20px 20px;
-    margin-top: -32px;
-    margin-left: -32px;
-    margin-right: -32px;
-    margin-bottom: 20px;
-    z-index: 100;
-}
+        .page-header {
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
 
-.page-header .page-title {
-    color: white;
-    background: none;
-    -webkit-background-clip: unset;
-    background-clip: unset;
-}
+        .page-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
         .card {
             background: var(--card-bg);
             border-radius: 20px;
