@@ -366,7 +366,43 @@ app.get('/api/inversionistas', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
+async function loadInversionistas() {
+    try {
+        console.log('Cargando inversionistas...');
+        const inversionistas = await apiFetch('/api/inversionistas');
+        console.log('Inversionistas recibidos:', inversionistas);
+        
+        const tbody = document.querySelector('#inversionistasTable tbody');
+        if (tbody) {
+            if (inversionistas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay inversionistas registrados</td></tr>';
+            } else {
+                tbody.innerHTML = inversionistas.map(inv => {
+                    const pagoMensual = inv.monto_inicial * (inv.porcentaje_comision / 100);
+                    return `
+                        <tr>
+                            <td><strong>${escapeHtml(inv.nombre)}</strong><br><small style="color:#666;">${inv.email || ''}</small></td>
+                            <td>${formatCurrency(inv.monto_inicial)}</td>
+                            <td>${inv.porcentaje_comision}%</td>
+                            <td>${formatCurrency(pagoMensual)}</td>
+                            <td>${formatCurrency(inv.total_pagado || 0)}</td>
+                            <td>${formatDate(inv.fecha_inversion)}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})" title="Registrar Pago">
+                                    <i class="fas fa-money-bill"></i> Pagar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+        await loadDashboardInversiones();
+    } catch(e) {
+        console.error('Error cargando inversionistas:', e);
+        showToast('Error al cargar inversionistas: ' + e.message, 'error');
+    }
+}
 // Crear inversionista
 app.post('/api/inversionistas', async (req, res) => {
     const { nombre, email, telefono, monto_inicial, porcentaje_comision, fecha_inversion } = req.body;
