@@ -294,7 +294,148 @@ app.put('/api/servicios/:id/pagar', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ============================================================
+// ENDPOINTS DE MEDICAMENTOS
+// ============================================================
 
+// Obtener todos los medicamentos del catálogo
+app.get('/api/medicamentos', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT * FROM medicamentos_catalogo 
+            ORDER BY nombre
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener medicamentos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Crear nuevo medicamento en el catálogo
+app.post('/api/medicamentos', async (req, res) => {
+    const { nombre, presentacion, dosis_habitual } = req.body;
+    
+    if (!nombre) {
+        return res.status(400).json({ error: 'El nombre del medicamento es requerido' });
+    }
+    
+    try {
+        const result = await pool.query(`
+            INSERT INTO medicamentos_catalogo (nombre, presentacion, dosis_habitual)
+            VALUES ($1, $2, $3)
+            RETURNING *
+        `, [nombre, presentacion, dosis_habitual]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al crear medicamento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener medicamentos asignados a un paciente
+app.get('/api/pacientes/:id/medicamentos', async (req, res) => {
+    const pacienteId = req.params.id;
+    
+    try {
+        const result = await pool.query(`
+            SELECT pm.*, mc.nombre as medicamento_nombre, mc.presentacion
+            FROM paciente_medicamentos pm
+            LEFT JOIN medicamentos_catalogo mc ON pm.medicamento_id = mc.id
+            WHERE pm.paciente_id = $1 AND pm.activo = true
+            ORDER BY pm.created_at DESC
+        `, [pacienteId]);
+        
+        // Parsear horario si es JSON string
+        const medicamentos = result.rows.map(m => ({
+            ...m,
+            horario: m.horario ? (typeof m.horario === 'string' ? JSON.parse(m.horario) : m.horario) : []
+        }));
+        
+        res.json(medicamentos);
+    } catch (error) {
+        console.error('Error al obtener medicamentos del paciente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Asignar medicamento a paciente
+app.post('/api/pacientes/:id/medicamentos', async (req, res) => {
+    const pacienteId = req.params.id;
+    const { medicamento_id, nombre, presentacion, dosis, horario } = req.body;
+    
+    if (!medicamento_id && !nombre) {
+        return res.status(400).json({ error: 'Se requiere medicamento_id o nombre' });
+    }
+    
+    try {
+        let medicamentoNombre = nombre;
+        let medicamentoPresentacion = presentacion;
+        
+        // Si se proporciona medicamento_id, obtener datos del catálogo
+        if (medicamento_id) {
+            const medicamentoCat = await pool.query(`
+                SELECT nombre, presentacion FROM medicamentos_catalogo WHERE id = $1
+            `, [medicamento_id]);
+            
+            if (medicamentoCat.rows.length > 0) {
+                medicamentoNombre = medicamentoCat.rows[0].nombre;
+                medicamentoPresentacion = medicamentoCat.rows[0].presentacion;
+            }
+        }
+        
+        const result = await pool.query(`
+            INSERT INTO paciente_medicamentos 
+            (paciente_id, medicamento_id, medicamento_nombre, dosis, horario, activo)
+            VALUES ($1, $2, $3, $4, $5, true)
+            RETURNING *
+        `, [pacienteId, medicamento_id || null, medicamentoNombre, dosis, JSON.stringify(horario || [])]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al asignar medicamento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Registrar aplicación de medicamento
+app.post('/api/medicamentos/aplicar', async (req, res) => {
+    const { paciente_medicamento_id, aplicado } = req.body;
+    
+    try {
+        // Crear registro de aplicación
+        const result = await pool.query(`
+            INSERT INTO aplicaciones_medicamentos 
+            (paciente_medicamento_id, fecha_aplicacion, aplicado)
+            VALUES ($1, NOW(), $2)
+            RETURNING *
+        `, [paciente_medicamento_id, aplicado]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al registrar aplicación:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Desactivar medicamento de paciente
+app.delete('/api/pacientes/:pacienteId/medicamentos/:medicamentoId', async (req, res) => {
+    const { pacienteId, medicamentoId } = req.params;
+    
+    try {
+        await pool.query(`
+            UPDATE paciente_medicamentos 
+            SET activo = false 
+            WHERE id = $1 AND paciente_id = $2
+        `, [medicamentoId, pacienteId]);
+        
+        res.json({ message: 'Medicamento desactivado' });
+    } catch (error) {
+        console.error('Error al desactivar medicamento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============================================================
 // 10. CONFIGURACIÓN FINANCIERA
 // ============================================================
