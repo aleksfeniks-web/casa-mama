@@ -591,7 +591,7 @@ function showInversionistaTab(idx) {
     });
 }
 
-/ Calcular ROI y proyecciones
+// Calcular ROI y proyecciones
 app.get('/api/calcular-roi', async (req, res) => {
     try {
         // Obtener datos actuales
