@@ -1095,18 +1095,83 @@
         </div>
 
         <!-- Historia Clínica Page -->
+                
         <div id="page-historia" class="page" style="display:none;">
             <div class="page-header">
                 <h1 class="page-title"><i class="fas fa-notes-medical"></i> Historia Clínica</h1>
-                <button class="btn btn-primary" onclick="openHistoriaModal()"><i class="fas fa-plus"></i> Nueva Nota</button>
+                <button class="btn btn-primary" onclick="openHistoriaModal()">
+                    <i class="fas fa-plus"></i> Nueva Nota
+                </button>
             </div>
+
+            <!-- Selector de Paciente -->
             <div class="card">
-                <div class="card-header"><h3>Seleccionar Paciente</h3></div>
-                <select id="historiaPacienteSelect" class="form-control" onchange="loadHistoriaPaciente()"><option value="">-- Seleccione un paciente --</option></select>
+                <div class="card-header">
+                    <h3><i class="fas fa-user-md"></i> Seleccionar Paciente</h3>
+                </div>
+                <select id="historiaPacienteSelect" class="form-control" onchange="loadHistoriaPaciente()">
+                    <option value="">-- Seleccione un paciente --</option>
+                </select>
             </div>
+
+            <!-- Contenido de Historia Clínica (oculto inicialmente) -->
             <div id="historiaContent" style="display:none;">
-                <div class="card"><div class="card-header"><h3>Datos del Paciente</h3></div><div id="pacienteInfo"></div></div>
-                <div class="card"><div class="card-header"><h3>Registro Clínico</h3></div><div id="historialList"></div></div>
+                
+                <!-- Tarjeta de información del paciente -->
+                <div class="card" style="background: linear-gradient(135deg, #667eea15, #764ba215);">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user-circle"></i> Datos del Paciente</h3>
+                    </div>
+                    <div id="pacienteInfo" class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;"></div>
+                </div>
+
+                <!-- Gráfica de signos vitales -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line"></i> Evolución de Signos Vitales</h3>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-sm btn-secondary" onclick="toggleSignoVital('presion')">Presión</button>
+                            <button class="btn btn-sm btn-secondary" onclick="toggleSignoVital('frecuencia')">FC</button>
+                            <button class="btn btn-sm btn-secondary" onclick="toggleSignoVital('temperatura')">Temperatura</button>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="signosVitalesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Resumen de últimos registros -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-history"></i> Últimos Registros Clínicos</h3>
+                    </div>
+                    <div id="historialList" class="timeline-container"></div>
+                </div>
+
+                <!-- Tabla completa de historial -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-table"></i> Historial Completo</h3>
+                        <button class="btn btn-sm btn-primary" onclick="exportarHistorialCSV()">
+                            <i class="fas fa-file-csv"></i> Exportar CSV
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="historialTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Presión</th>
+                                    <th>FC (lpm)</th>
+                                    <th>Temperatura</th>
+                                    <th>Diagnóstico</th>
+                                    <th>Tratamiento</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
