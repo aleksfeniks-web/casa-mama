@@ -17,7 +17,43 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+// Credenciales
+const USERS = {
+    admin: { password: 'admin', role: 'admin' },
+    superadmin: { password: 'superadmin', role: 'superadmin' }
+};
 
+function verificarLogin() {
+    const user = document.getElementById('loginUser').value;
+    const pass = document.getElementById('loginPass').value;
+    
+    if (USERS[user] && USERS[user].password === pass) {
+        isAdmin = true;
+        isSuperAdmin = user === 'superadmin';
+        
+        const loginModal = document.getElementById('loginModal');
+        loginModal.classList.remove('active');
+        loginModal.style.display = 'none';
+        
+        // Mostrar elementos según rol
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.add('visible'));
+        
+        if (isSuperAdmin) {
+            document.querySelectorAll('.superadmin-only').forEach(el => el.classList.add('visible'));
+            showToast('Bienvenido SuperAdministrador - Acceso total', 'success');
+            // Mostrar item de inversiones en el menú
+            const invItem = document.querySelector('.nav-item[onclick*="inversiones"]');
+            if (invItem) invItem.style.display = 'flex';
+        } else {
+            showToast('Bienvenido Administrador', 'success');
+        }
+        
+        refreshAll();
+        loadPatients();
+    } else {
+        showToast('Usuario o contraseña incorrectos', 'error');
+    }
+}
 // ============================================================
 // 2. IMPORTAR RUTAS (después de crear pool)
 // ============================================================
