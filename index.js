@@ -294,6 +294,204 @@ app.put('/api/servicios/:id/pagar', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// ENDPOINTS DE INVERSIONES
+// ============================================================
+
+// Obtener todos los inversionistas
+app.get('/api/inversionistas', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT i.*, 
+                   COALESCE(SUM(pi.monto), 0) as total_pagado
+            FROM inversionistas i
+            LEFT JOIN pagos_inversionistas pi ON i.id = pi.inversionista_id
+            WHERE i.activo = true
+            GROUP BY i.id
+            ORDER BY i.fecha_inversion DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener inversionistas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Crear inversionista
+app.post('/api/inversionistas', async (req, res) => {
+    const { nombre, email, telefono, monto_inicial, porcentaje_comision, fecha_inversion } = req.body;
+    
+    if (!nombre || !monto_inicial) {
+        return res.status(400).json({ error: 'Nombre y monto inicial son requeridos' });
+    }
+    
+    try {
+        const result = await pool.query(`
+            INSERT INTO inversionistas (nombre, email, telefono, monto_inicial, porcentaje_comision, fecha_inversion)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [nombre, email, telefono, monto_inicial, porcentaje_comision || 5.0, fecha_inversion || new Date()]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al crear inversionista:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Registrar pago a inversionista
+app.post('/api/inversionistas/:id/pagos', async (req, res) => {
+    const inversionistaId = req.params.id;
+    const { monto, mes, año, metodo_pago } = req.body;
+    
+    try {
+        const result = await pool.query(`
+            INSERT INTO pagos_inversionistas (inversionista_id, monto, mes, año, metodo_pago)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `, [inversionistaId, monto, mes, año, metodo_pago]);
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al registrar pago:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Calcular ROI y proyecciones
+app.get('/api/calcular-roi', async (req, res) => {
+    try {
+        // Obtener datos actuales
+        const pacientesResult = await pool.query(`
+            SELECT COUNT(*) as total_activos 
+            FROM patients 
+            WHERE status = 'active'
+        `);
+        const totalPacientes = parseInt(pacientesResult.rows[0].total_activos);
+        
+        // Obtener configuración financiera
+        const configResult = await pool.query(`
+            SELECT valor FROM configuracion WHERE clave = 'costos'
+        `);
+        const config = configResult.rows[0]?.valor || {};
+        const costs = typeof config === 'string' ? JSON.parse(config) : config;
+        
+        // Calcular ingresos y utilidad
+        const planesResult = await pool.query(`
+            SELECT plan_id, COUNT(*) as cantidad
+            FROM patients
+            WHERE status = 'active'
+            GROUP BY plan_id
+        `);
+        
+        let ingresoTotal = 0;
+        for (const row of planesResult.rows) {
+            const planPrecio = row.plan_id === 1 ? 8000 : row.plan_id === 2 ? 12000 : 16000;
+            ingresoTotal += row.cantidad * planPrecio;
+        }
+        
+        const totalCostos = (costs.personal || 52500) + 
+                           (costs.food || 30000) + 
+                           (costs.medical || 20000) + 
+                           (costs.utilities || 10000) + 
+                           (costs.supplies || 6500) + 
+                           (costs.insurance || 4000);
+        
+        const utilidadMensual = ingresoTotal - totalCostos;
+        
+        // Obtener inversionistas
+        const inversionistasResult = await pool.query(`
+            SELECT * FROM inversionistas WHERE activo = true
+        `);
+        const inversionistas = inversionistasResult.rows;
+        
+        // Calcular proyecciones para diferentes porcentajes
+        const porcentajes = [3, 5, 7, 8, 10, 12, 15];
+        const proyecciones = [];
+        
+        for (const inv of inversionistas) {
+            for (const porcentaje of porcentajes) {
+                const pagoMensual = inv.monto_inicial * (porcentaje / 100);
+                const mesesRetorno = Math.ceil(inv.monto_inicial / pagoMensual);
+                const retornoAnual = pagoMensual * 12;
+                const roiAnual = (retornoAnual / inv.monto_inicial) * 100;
+                
+                proyecciones.push({
+                    inversionista_id: inv.id,
+                    inversionista_nombre: inv.nombre,
+                    monto_inicial: inv.monto_inicial,
+                    porcentaje: porcentaje,
+                    pago_mensual: pagoMensual,
+                    meses_retorno: mesesRetorno,
+                    retorno_anual: retornoAnual,
+                    roi_anual: roiAnual
+                });
+            }
+        }
+        
+        res.json({
+            pacientes_activos: totalPacientes,
+            ingreso_mensual: ingresoTotal,
+            costo_mensual: totalCostos,
+            utilidad_mensual: utilidadMensual,
+            inversionistas: inversionistas,
+            proyecciones: proyecciones
+        });
+    } catch (error) {
+        console.error('Error al calcular ROI:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener dashboard de inversiones (solo superadmin)
+app.get('/api/dashboard-inversiones', async (req, res) => {
+    try {
+        // Obtener resumen de inversiones
+        const inversionistas = await pool.query(`
+            SELECT 
+                i.*,
+                COALESCE(SUM(pi.monto), 0) as pagado_total,
+                COUNT(pi.id) as num_pagos
+            FROM inversionistas i
+            LEFT JOIN pagos_inversionistas pi ON i.id = pi.inversionista_id
+            WHERE i.activo = true
+            GROUP BY i.id
+        `);
+        
+        // Obtener pagos por mes
+        const pagosPorMes = await pool.query(`
+            SELECT 
+                EXTRACT(YEAR FROM fecha_pago) as año,
+                EXTRACT(MONTH FROM fecha_pago) as mes,
+                SUM(monto) as total_pagado
+            FROM pagos_inversionistas
+            GROUP BY año, mes
+            ORDER BY año DESC, mes DESC
+            LIMIT 12
+        `);
+        
+        // Calcular ROI total del negocio
+        const pacientes = await pool.query(`SELECT COUNT(*) as total FROM patients WHERE status = 'active'`);
+        const inversionTotal = await pool.query(`SELECT COALESCE(SUM(monto_inicial), 0) as total FROM inversionistas WHERE activo = true`);
+        const pagadoTotal = await pool.query(`SELECT COALESCE(SUM(monto), 0) as total FROM pagos_inversionistas`);
+        
+        res.json({
+            inversionistas: inversionistas.rows,
+            pagos_por_mes: pagosPorMes.rows,
+            resumen: {
+                total_inversionistas: inversionistas.rows.length,
+                inversion_total: parseFloat(inversionTotal.rows[0].total),
+                pagado_acumulado: parseFloat(pagadoTotal.rows[0].total),
+                pendiente_por_pagar: parseFloat(inversionTotal.rows[0].total) - parseFloat(pagadoTotal.rows[0].total),
+                pacientes_actuales: parseInt(pacientes.rows[0].total)
+            }
+        });
+    } catch (error) {
+        console.error('Error al obtener dashboard de inversiones:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============================================================
 // ENDPOINTS DE MEDICAMENTOS
 // ============================================================
