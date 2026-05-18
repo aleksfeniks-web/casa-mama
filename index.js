@@ -590,11 +590,10 @@ function showInversionistaTab(idx) {
         }
     });
 }
-
 // Calcular ROI y proyecciones
 app.get('/api/calcular-roi', async (req, res) => {
     try {
-        // Obtener datos actuales
+        // Obtener pacientes activos
         const pacientesResult = await pool.query(`
             SELECT COUNT(*) as total_activos 
             FROM patients 
@@ -606,6 +605,7 @@ app.get('/api/calcular-roi', async (req, res) => {
         const configResult = await pool.query(`
             SELECT valor FROM configuracion WHERE clave = 'costos'
         `);
+        
         let config = { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 };
         
         if (configResult.rows.length > 0) {
@@ -623,7 +623,7 @@ app.get('/api/calcular-roi', async (req, res) => {
         
         let ingresoTotal = 0;
         for (const row of planesResult.rows) {
-            let planPrecio = 12000; // default Intermedio
+            let planPrecio = 12000;
             if (row.plan_id === 1) planPrecio = 8000;
             else if (row.plan_id === 2) planPrecio = 12000;
             else if (row.plan_id === 3) planPrecio = 16000;
@@ -645,16 +645,16 @@ app.get('/api/calcular-roi', async (req, res) => {
         `);
         const inversionistas = inversionistasResult.rows;
         
-        // Calcular proyecciones para diferentes porcentajes
+        // Calcular proyecciones
         const porcentajes = [3, 5, 7, 8, 10, 12, 15];
         const proyecciones = [];
         
         for (const inv of inversionistas) {
             for (const porcentaje of porcentajes) {
-                const pagoMensual = inv.monto_inicial * (porcentaje / 100);
-                const mesesRetorno = Math.ceil(inv.monto_inicial / pagoMensual);
+                const pagoMensual = parseFloat(inv.monto_inicial) * (porcentaje / 100);
+                const mesesRetorno = Math.ceil(parseFloat(inv.monto_inicial) / pagoMensual);
                 const retornoAnual = pagoMensual * 12;
-                const roiAnual = (retornoAnual / inv.monto_inicial) * 100;
+                const roiAnual = (retornoAnual / parseFloat(inv.monto_inicial)) * 100;
                 
                 proyecciones.push({
                     inversionista_id: inv.id,
@@ -682,24 +682,30 @@ app.get('/api/calcular-roi', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // Obtener dashboard de inversiones (solo superadmin)
 app.get('/api/dashboard-inversiones', async (req, res) => {
     try {
         // Obtener resumen de inversionistas
         const inversionistas = await pool.query(`
             SELECT 
-                i.*,
+                i.id,
+                i.nombre,
+                i.email,
+                i.telefono,
+                i.monto_inicial,
+                i.porcentaje_comision,
+                i.fecha_inversion,
+                i.activo,
                 COALESCE(SUM(pi.monto), 0) as total_pagado,
                 COUNT(pi.id) as num_pagos
             FROM inversionistas i
             LEFT JOIN pagos_inversionistas pi ON i.id = pi.inversionista_id
             WHERE i.activo = true
-            GROUP BY i.id
+            GROUP BY i.id, i.nombre, i.email, i.telefono, i.monto_inicial, i.porcentaje_comision, i.fecha_inversion, i.activo
             ORDER BY i.fecha_inversion DESC
         `);
         
-        // Obtener pagos por mes - CORREGIDO: agregar GROUP BY correcto
+        // Obtener pagos por mes - CORREGIDO
         const pagosPorMes = await pool.query(`
             SELECT 
                 EXTRACT(YEAR FROM fecha_pago) as año,
@@ -711,9 +717,13 @@ app.get('/api/dashboard-inversiones', async (req, res) => {
             LIMIT 12
         `);
         
-        // Calcular resumen
+        // Calcular pacientes activos
         const pacientes = await pool.query(`SELECT COUNT(*) as total FROM patients WHERE status = 'active'`);
+        
+        // Calcular total de inversiones
         const inversionTotal = await pool.query(`SELECT COALESCE(SUM(monto_inicial), 0) as total FROM inversionistas WHERE activo = true`);
+        
+        // Calcular total pagado
         const pagadoTotal = await pool.query(`SELECT COALESCE(SUM(monto), 0) as total FROM pagos_inversionistas`);
         
         // Formatear pagos por mes para el frontend
