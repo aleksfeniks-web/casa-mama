@@ -9,49 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <style>
 
-        /* Estilos específicos para página de inversiones */
-#page-inversiones {
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-    padding-bottom: 30px;
-}
 
-#page-inversiones .kpi-grid {
-    margin-bottom: 20px;
-}
-
-#page-inversiones .card {
-    margin-bottom: 20px;
-    break-inside: avoid;
-}
-
-/* Contenedor para tablas con scroll horizontal si es necesario */
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-/* Tarjetas más compactas en inversiones */
-#page-inversiones .card-header {
-    padding-bottom: 12px;
-    margin-bottom: 12px;
-}
-
-#page-inversiones .card-header h3 {
-    font-size: 1.1em;
-}
-
-/* Tablas más compactas */
-#page-inversiones .table th,
-#page-inversiones .table td {
-    padding: 8px 10px;
-    font-size: 0.85em;
-}
-
-/* Ajuste de gráfico */
-#page-inversiones .chart-container {
-    height: 250px;
-}
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
@@ -794,6 +752,50 @@
             .card { padding: 18px; }
             .patients-grid { grid-template-columns: 1fr; }
         }
+
+        /* Estilos para página de inversiones - Versión corregida */
+#page-inversiones {
+    width: 100%;
+}
+
+#page-inversiones .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+#page-inversiones .card {
+    margin-bottom: 20px;
+}
+
+#page-inversiones .table-responsive {
+    overflow-x: auto;
+}
+
+#page-inversiones .table {
+    min-width: 600px;
+}
+
+#page-inversiones .table th,
+#page-inversiones .table td {
+    padding: 10px 12px;
+    font-size: 0.85em;
+}
+
+#page-inversiones .chart-container {
+    height: 250px;
+}
+
+/* Ajuste del header dentro de inversiones */
+#page-inversiones .page-header {
+    position: relative !important;
+    top: auto !important;
+    background: transparent !important;
+    margin-bottom: 20px !important;
+    padding: 0 !important;
+}
+        
     </style>
 </head>
 <body>
