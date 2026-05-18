@@ -1413,23 +1413,57 @@
         });
     }
 
-    function verificarLogin() {
-        const user = document.getElementById('loginUser').value;
-        const pass = document.getElementById('loginPass').value;
-        if (user === 'admin' && pass === 'admin') {
-            isAdmin = true;
-            const loginModal = document.getElementById('loginModal');
+    // Credenciales del sistema
+const USERS = {
+    admin: { password: 'admin', role: 'admin' },
+    superadmin: { password: 'superadmin', role: 'superadmin' }
+};
+
+let isSuperAdmin = false;
+
+function verificarLogin() {
+    const user = document.getElementById('loginUser').value;
+    const pass = document.getElementById('loginPass').value;
+    
+    // Verificar si existe el usuario y la contraseña coincide
+    if (USERS[user] && USERS[user].password === pass) {
+        isAdmin = true;
+        isSuperAdmin = (user === 'superadmin');
+        
+        // Ocultar modal de login
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) {
             loginModal.classList.remove('active');
             loginModal.style.display = 'none';
-            document.querySelectorAll('.admin-only').forEach(el => el.classList.add('visible'));
-            document.querySelectorAll('.admin-only-block').forEach(el => el.classList.add('visible'));
-            showToast('Bienvenido Administrador', 'success');
-            refreshAll();
-            loadPatients();
-        } else {
-            showToast('Usuario o contraseña incorrectos', 'error');
         }
+        
+        // Mostrar elementos comunes de admin
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.add('visible'));
+        document.querySelectorAll('.admin-only-block').forEach(el => el.classList.add('visible'));
+        
+        // Si es superadmin, mostrar elementos adicionales
+        if (isSuperAdmin) {
+            document.querySelectorAll('.superadmin-only').forEach(el => {
+                el.classList.add('visible');
+                if (el.style) el.style.display = 'flex';
+            });
+            showToast('✅ Bienvenido SuperAdministrador - Acceso a inversiones', 'success');
+        } else {
+            showToast('✅ Bienvenido Administrador', 'success');
+        }
+        
+        // Recargar datos
+        refreshAll();
+        loadPatients();
+        
+        // Si hay página de inversiones, cargarla también
+        if (isSuperAdmin && typeof loadInversionistas === 'function') {
+            loadInversionistas();
+        }
+    } else {
+        showToast('❌ Usuario o contraseña incorrectos', 'error');
     }
+}
 
     function checkAuth() {
         const loginModal = document.getElementById('loginModal');
