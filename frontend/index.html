@@ -1126,6 +1126,7 @@
     </main>
 </div>
 
+    
     <!-- Inversiones Page -->
 <div id="page-inversiones" class="page" style="display:none;">
     <div class="page-header">
@@ -2104,7 +2105,242 @@
         showToast('Error al cargar empleados', 'error');
     }
 }
+// ============================================================
+// MÓDULO DE INVERSIONES
+// ============================================================
 
+let inversionistasChart = null;
+
+// Cargar inversionistas
+async function loadInversionistas() {
+    try {
+        const inversionistas = await apiFetch('/api/inversionistas');
+        const tbody = document.querySelector('#inversionistasTable tbody');
+        if (tbody) {
+            tbody.innerHTML = inversionistas.map(inv => `
+                <tr>
+                    <td><strong>${inv.nombre}</strong><br><small>${inv.email || ''}</small></td>
+                    <td>${formatCurrency(inv.monto_inicial)}</td
+                    <td>${inv.porcentaje_comision}%</td
+                    <td>${formatCurrency(inv.monto_inicial * (inv.porcentaje_comision / 100))}</td
+                    <td>${formatCurrency(inv.total_pagado || 0)}</td
+                    <td>${formatDate(inv.fecha_inversion)}</td
+                    <td>
+                        <button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})">
+                            <i class="fas fa-money-bill"></i> Pagar
+                        </button>
+                    </td
+                </tr>
+            `).join('');
+        }
+        await loadDashboardInversiones();
+    } catch(e) {
+        console.error('Error cargando inversionistas:', e);
+    }
+}
+
+// Cargar dashboard de inversiones
+async function loadDashboardInversiones() {
+    try {
+        const data = await apiFetch('/api/dashboard-inversiones');
+        
+        document.getElementById('totalInversion').textContent = formatCurrency(data.resumen.inversion_total);
+        document.getElementById('totalPagado').textContent = formatCurrency(data.resumen.pagado_acumulado);
+        document.getElementById('totalPendiente').textContent = formatCurrency(data.resumen.pendiente_por_pagar);
+        document.getElementById('pacientesActuales').textContent = data.resumen.pacientes_actuales;
+        
+        // Actualizar gráfico
+        if (inversionistasChart) inversionistasChart.destroy();
+        const ctx = document.getElementById('pagosInversionistasChart')?.getContext('2d');
+        if (ctx && data.pagos_por_mes.length > 0) {
+            const labels = data.pagos_por_mes.map(p => `${p.mes}/${p.año}`);
+            const values = data.pagos_por_mes.map(p => p.total_pagado);
+            inversionistasChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.reverse(),
+                    datasets: [{
+                        label: 'Pagos a Inversionistas',
+                        data: values.reverse(),
+                        backgroundColor: '#10b981',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => '$' + v.toLocaleString() }
+                        }
+                    }
+                }
+            });
+        }
+    } catch(e) {
+        console.error('Error cargando dashboard inversiones:', e);
+    }
+}
+
+// Calcular ROI
+async function calcularROI() {
+    showLoading(true);
+    try {
+        const data = await apiFetch('/api/calcular-roi');
+        
+        // Mostrar resumen actual
+        const resumenHtml = `
+            <div class="kpi-grid" style="margin-bottom: 20px;">
+                <div class="kpi-card"><div><h3>Utilidad Mensual</h3><div class="kpi-value ${data.utilidad_mensual >= 0 ? 'success' : 'danger'}">${formatCurrency(data.utilidad_mensual)}</div></div></div>
+                <div class="kpi-card"><div><h3>Ingreso Mensual</h3><div class="kpi-value">${formatCurrency(data.ingreso_mensual)}</div></div></div>
+                <div class="kpi-card"><div><h3>Costo Mensual</h3><div class="kpi-value">${formatCurrency(data.costo_mensual)}</div></div></div>
+            </div>
+        `;
+        
+        // Mostrar proyecciones por inversionista
+        let proyeccionesHtml = '<h4>Proyecciones por Inversionista</h4>';
+        for (const inv of data.inversionistas) {
+            const proyeccionesInv = data.proyecciones.filter(p => p.inversionista_id === inv.id);
+            proyeccionesHtml += `
+                <div class="card" style="margin-top: 15px;">
+                    <h5>${inv.nombre} - Inversión: ${formatCurrency(inv.monto_inicial)}</h5>
+                    <table class="table">
+                        <thead><tr><th>% Mensual</th><th>Pago Mensual</th><th>Meses para retornar</th><th>Retorno Anual</th><th>ROI Anual</th></tr></thead>
+                        <tbody>
+                            ${proyeccionesInv.map(p => `
+                                <tr>
+                                    <td><strong>${p.porcentaje}%</strong></td>
+                                    <td>${formatCurrency(p.pago_mensual)}</td>
+                                    <td>${p.meses_retorno} meses</td>
+                                    <td>${formatCurrency(p.retorno_anual)}</td>
+                                    <td class="${p.roi_anual >= 60 ? 'text-success' : ''}">${p.roi_anual.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        document.getElementById('roiProyecciones').innerHTML = resumenHtml + proyeccionesHtml;
+        document.getElementById('roiCard').style.display = 'block';
+        
+        showToast('Cálculo de ROI completado');
+    } catch(e) {
+        showToast('Error al calcular ROI: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Simular ROI
+function simularROI() {
+    const monto = parseFloat(document.getElementById('simMonto').value);
+    const porcentaje = parseFloat(document.getElementById('simPorcentaje').value);
+    
+    if (!monto || !porcentaje) {
+        showToast('Ingrese monto y porcentaje', 'error');
+        return;
+    }
+    
+    const pagoMensual = monto * (porcentaje / 100);
+    const mesesRetorno = Math.ceil(monto / pagoMensual);
+    const roiAnual = (pagoMensual * 12 / monto) * 100;
+    
+    document.getElementById('simPagoMensual').textContent = formatCurrency(pagoMensual);
+    document.getElementById('simMesesRetorno').textContent = mesesRetorno;
+    document.getElementById('simROIAnual').textContent = roiAnual.toFixed(1) + '%';
+    document.getElementById('simulacionResultado').style.display = 'block';
+}
+
+// Modal functions
+function openInversionistaModal(id = null) {
+    document.getElementById('inversionistaId').value = '';
+    document.getElementById('invNombre').value = '';
+    document.getElementById('invEmail').value = '';
+    document.getElementById('invTelefono').value = '';
+    document.getElementById('invMonto').value = '';
+    document.getElementById('invComision').value = '5';
+    document.getElementById('invFecha').value = new Date().toISOString().split('T')[0];
+    
+    if (id) {
+        // Cargar datos para editar
+        fetch(`/api/inversionistas/${id}`)
+            .then(r => r.json())
+            .then(inv => {
+                document.getElementById('inversionistaId').value = inv.id;
+                document.getElementById('invNombre').value = inv.nombre;
+                document.getElementById('invEmail').value = inv.email || '';
+                document.getElementById('invTelefono').value = inv.telefono || '';
+                document.getElementById('invMonto').value = inv.monto_inicial;
+                document.getElementById('invComision').value = inv.porcentaje_comision;
+                document.getElementById('invFecha').value = inv.fecha_inversion?.split('T')[0] || '';
+            });
+    }
+    
+    document.getElementById('inversionistaModal').classList.add('active');
+}
+
+function closeInversionistaModal() {
+    document.getElementById('inversionistaModal').classList.remove('active');
+}
+
+async function saveInversionista() {
+    const id = document.getElementById('inversionistaId').value;
+    const payload = {
+        nombre: document.getElementById('invNombre').value,
+        email: document.getElementById('invEmail').value,
+        telefono: document.getElementById('invTelefono').value,
+        monto_inicial: parseFloat(document.getElementById('invMonto').value),
+        porcentaje_comision: parseFloat(document.getElementById('invComision').value),
+        fecha_inversion: document.getElementById('invFecha').value
+    };
+    
+    try {
+        if (id) {
+            await apiFetch(`/api/inversionistas/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            await apiFetch('/api/inversionistas', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        showToast('Inversionista guardado');
+        closeInversionistaModal();
+        loadInversionistas();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function abrirPagoInversionista(inversionistaId) {
+    document.getElementById('pagoInvId').value = inversionistaId;
+    document.getElementById('pagoInvMonto').value = '';
+    document.getElementById('pagoInvMes').value = new Date().getMonth() + 1;
+    document.getElementById('pagoInvAño').value = new Date().getFullYear();
+    document.getElementById('pagoInversionistaModal').classList.add('active');
+}
+
+function closePagoInversionistaModal() {
+    document.getElementById('pagoInversionistaModal').classList.remove('active');
+}
+
+async function registrarPagoInversionista() {
+    const inversionistaId = document.getElementById('pagoInvId').value;
+    const payload = {
+        monto: parseFloat(document.getElementById('pagoInvMonto').value),
+        mes: parseInt(document.getElementById('pagoInvMes').value),
+        año: parseInt(document.getElementById('pagoInvAño').value),
+        metodo_pago: document.getElementById('pagoInvMetodo').value
+    };
+    
+    try {
+        await apiFetch(`/api/inversionistas/${inversionistaId}/pagos`, { method: 'POST', body: JSON.stringify(payload) });
+        showToast('Pago registrado');
+        closePagoInversionistaModal();
+        loadInversionistas();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
 // Nueva función: Generar nómina para un empleado específico
 async function generarNominaIndividual(empleadoId) {
     try {
