@@ -200,7 +200,7 @@
             padding: 32px;
             transition: margin-left 0.3s ease;
             overflow-y: auto;    /* El scroll general de la app está aquí */
-    height: 100vh;       /* Importante: que ocupe toda la altura */
+    min-height: 100vh;       /* Importante: que ocupe toda la altura */
         }
 
         .page-header {
@@ -758,8 +758,10 @@
         /* Estilos para página de inversiones - Versión corregida */
 
 #page-inversiones {
-    /* Sin propiedades que alteren el flujo o el scroll */
     width: 100%;
+    height: auto;
+    min-height: auto;
+    overflow: visible;
 }
         
 #page-inversiones .kpi-grid {
@@ -771,7 +773,7 @@
 
 #page-inversiones .card {
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     box-sizing: border-box;
 }
 
@@ -795,12 +797,9 @@
     widht: 100%;
 }
 
-        #page-inversiones .page-header {
-    position: relative !important;
-    top: auto !important;
-    background: transparent !important;
-    margin: 0 0 24px 0 !important;
-    padding: 0 !important;
+   #page-inversiones .page-header {
+    position: static !important;
+    margin-bottom: 24px !important;
     display: flex;
     justify-content: space-between;
     align-items: center;
