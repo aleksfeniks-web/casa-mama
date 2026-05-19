@@ -899,6 +899,157 @@
     font-weight: 600;
     margin-top: 5px;
 }
+
+        /* Estilos para tabla de adeudos */
+#adeudosTable {
+    width: 100%;
+}
+
+.adeudo-alto {
+    color: #dc2626;
+    font-weight: 700;
+    background: #fee2e2;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.adeudo-medio {
+    color: #d97706;
+    font-weight: 600;
+    background: #fed7aa;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.adeudo-bajo {
+    color: #059669;
+    background: #d1fae5;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+/* Estilos para historial de pagos */
+.pagos-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.pago-item {
+    background: var(--light);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    transition: all 0.3s;
+    border-left: 4px solid var(--success);
+}
+
+.pago-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pago-info {
+    flex: 1;
+}
+
+.pago-fecha {
+    font-size: 0.85em;
+    color: var(--gray);
+    margin-bottom: 4px;
+}
+
+.pago-fecha i {
+    margin-right: 5px;
+}
+
+.pago-monto {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--success);
+}
+
+.pago-metodo {
+    display: inline-block;
+    padding: 4px 12px;
+    background: white;
+    border-radius: 20px;
+    font-size: 0.8em;
+    margin-left: 10px;
+}
+
+.resumen-pagos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea15, #764ba215);
+    border-radius: 16px;
+}
+
+.resumen-card {
+    text-align: center;
+}
+
+.resumen-card .label {
+    font-size: 0.75em;
+    color: var(--gray);
+    text-transform: uppercase;
+}
+
+.resumen-card .value {
+    font-size: 1.3em;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+.btn-pagar-adeudo {
+    background: #dc2626;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-pagar-adeudo:hover {
+    background: #b91c1c;
+    transform: scale(1.02);
+}
+
+.btn-ver-pagos {
+    background: #3b82f6;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    border: none;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .resumen-pagos {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .pago-item {
+        flex-direction: column;
+        text-align: center;
+    }
+}
         
     </style>
 </head>
