@@ -1441,7 +1441,7 @@
             </div>
         </div>
 
-        <!-- Pagos Page - Nuevo diseño similar a nómina -->
+        <!-- Pagos Page - Estilo lista de chat -->
 <div id="page-pagos" class="page" style="display:none;">
     <div class="page-header">
         <h1 class="page-title"><i class="fas fa-dollar-sign"></i> Pagos y Adeudos</h1>
@@ -1477,10 +1477,10 @@
         </div>
     </div>
 
-    <!-- Tabla de pacientes con adeudos (similar a empleados) -->
+    <!-- Tabla de pacientes con adeudos -->
     <div class="card">
         <div class="card-header">
-            <h3><i class="fas fa-users"></i> Pacientes con Adeudos</h3>
+            <h3><i class="fas fa-exclamation-circle"></i> Pacientes con Adeudos</h3>
             <div class="search-box" style="width: 250px;">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchPacienteAdeudo" placeholder="Buscar paciente..." oninput="filtrarTablaAdeudos()">
@@ -1494,8 +1494,7 @@
                         <th>Plan</th>
                         <th>Mensualidad</th>
                         <th>Adeudo</th>
-                        <th>Meses Atraso</th>
-                        <th>Estado</th>
+                        <th>Meses</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -1504,18 +1503,32 @@
         </div>
     </div>
 
-    <!-- Historial de pagos por paciente (acordeón) -->
+    <!-- Lista de pacientes estilo chat para ver historial -->
     <div class="card">
         <div class="card-header">
-            <h3><i class="fas fa-history"></i> Historial de Pagos</h3>
-            <select id="pagosPacienteSelect" class="form-control" style="width: auto;" onchange="cargarHistorialPagos()">
-                <option value="">-- Seleccionar paciente --</option>
-            </select>
+            <h3><i class="fas fa-users"></i> Pacientes</h3>
+            <div class="search-box" style="width: 250px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchPacienteLista" placeholder="Buscar paciente..." oninput="filtrarListaPacientes()">
+            </div>
         </div>
-        <div id="historialPagosContainer" style="margin-top: 20px;">
+        <div class="pacientes-lista" id="pacientesListaContainer" style="max-height: 400px; overflow-y: auto;">
+            <!-- Aquí se cargará la lista estilo chat -->
+        </div>
+    </div>
+
+    <!-- Historial de pagos del paciente seleccionado -->
+    <div class="card" id="historialPagosCard" style="display: none;">
+        <div class="card-header">
+            <h3><i class="fas fa-history"></i> Historial de Pagos</h3>
+            <button class="btn btn-primary btn-sm" id="btnPagarAdeudo" style="display: none;" onclick="abrirPagoDesdeHistorial()">
+                <i class="fas fa-money-bill"></i> Registrar Pago
+            </button>
+        </div>
+        <div id="historialPagosContainer">
             <div class="empty-state">
                 <i class="fas fa-receipt"></i>
-                <p>Seleccione un paciente para ver su historial de pagos</p>
+                <p>Seleccione un paciente de la lista para ver su historial</p>
             </div>
         </div>
     </div>
