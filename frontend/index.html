@@ -2053,104 +2053,124 @@
     let isAdmin = false;
     let dashboardView = 'costos';
 
-    const medicamentosGeriatria = [
-        { nombre: "Losartán", presentacion: "Tableta 50mg", dosis: "1 tableta cada 24h" },
-        { nombre: "Metformina", presentacion: "Tableta 850mg", dosis: "1 tableta cada 12h" },
-        { nombre: "Amlodipino", presentacion: "Tableta 5mg", dosis: "1 tableta cada 24h" },
-        { nombre: "Paracetamol", presentacion: "Tableta 500mg", dosis: "1 tableta cada 8h" },
-        { nombre: "Omeprazol", presentacion: "Cápsula 20mg", dosis: "1 cápsula antes del desayuno" },
-        { nombre: "Enalapril", presentacion: "Tableta 10mg", dosis: "1/2 tableta cada 12h" },
-        { nombre: "Atorvastatina", presentacion: "Tableta 20mg", dosis: "1 tableta cada 24h" },
-        { nombre: "Ácido Acetilsalicílico", presentacion: "Tableta 100mg", dosis: "1 tableta cada 24h" },
-        { nombre: "Furosemida", presentacion: "Tableta 40mg", dosis: "1 tableta cada 24h" },
-        { nombre: "Levotiroxina", presentacion: "Tableta 50mcg", dosis: "1 tableta en ayunas" }
-    ];
+    // ============================================================
+// VARIABLES GLOBALES
+// ============================================================
+let pacientes = [];
+let medicamentosLista = [];
+let empleados = [];
+let charts = {};
+let isAdmin = false;
+let isSuperAdmin = false;
+let dashboardView = 'costos';
+let signosChart = null;
+let currentSignoVisible = 'presion';
+let inversionistasChart = null;
+let todosLosPacientes = [];
+let pacienteSeleccionadoId = null;
+let pacienteSeleccionadoAdeudo = 0;
 
-    async function apiFetch(path, options = {}) {
-        const res = await fetch(`${API_URL}${path}`, {
-            headers: { 'Content-Type': 'application/json' },
-            ...options
-        });
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-    }
+const medicamentosGeriatria = [
+    { nombre: "Losartán", presentacion: "Tableta 50mg", dosis: "1 tableta cada 24h" },
+    { nombre: "Metformina", presentacion: "Tableta 850mg", dosis: "1 tableta cada 12h" },
+    { nombre: "Amlodipino", presentacion: "Tableta 5mg", dosis: "1 tableta cada 24h" },
+    { nombre: "Paracetamol", presentacion: "Tableta 500mg", dosis: "1 tableta cada 8h" },
+    { nombre: "Omeprazol", presentacion: "Cápsula 20mg", dosis: "1 cápsula antes del desayuno" },
+    { nombre: "Enalapril", presentacion: "Tableta 10mg", dosis: "1/2 tableta cada 12h" },
+    { nombre: "Atorvastatina", presentacion: "Tableta 20mg", dosis: "1 tableta cada 24h" },
+    { nombre: "Ácido Acetilsalicílico", presentacion: "Tableta 100mg", dosis: "1 tableta cada 24h" },
+    { nombre: "Furosemida", presentacion: "Tableta 40mg", dosis: "1 tableta cada 24h" },
+    { nombre: "Levotiroxina", presentacion: "Tableta 50mcg", dosis: "1 tableta en ayunas" }
+];
 
-    function showToast(msg, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i><span>${msg}</span>`;
-        document.getElementById('toastContainer').appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
-
-    function showLoading(show) {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) overlay.classList.toggle('active', show);
-    }
-
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.toggle('active');
-    }
-
-    function formatCurrency(amount) {
-        return '$' + (amount || 0).toLocaleString('es-MX');
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return 'N/A';
-        return new Date(dateStr).toLocaleDateString('es-MX');
-    }
-
-    function calcularEdad(birthdate) {
-        if (!birthdate) return '?';
-        const today = new Date();
-        const birth = new Date(birthdate);
-        let age = today.getFullYear() - birth.getFullYear();
-        const m = today.getMonth() - birth.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-        return age;
-    }
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    // Credenciales del sistema
+// Credenciales del sistema
 const USERS = {
     admin: { password: 'admin', role: 'admin' },
     superadmin: { password: 'superadmin', role: 'superadmin' }
 };
 
-let isSuperAdmin = false;
+// ============================================================
+// FUNCIONES UTILITARIAS
+// ============================================================
+function showToast(msg, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i><span>${msg}</span>`;
+    document.getElementById('toastContainer').appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
 
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.classList.toggle('active', show);
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('active');
+}
+
+function formatCurrency(amount) {
+    return '$' + (amount || 0).toLocaleString('es-MX');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('es-MX');
+}
+
+function calcularEdad(birthdate) {
+    if (!birthdate) return '?';
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+// ============================================================
+// API
+// ============================================================
+async function apiFetch(path, options = {}) {
+    const res = await fetch(`${API_URL}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
 function verificarLogin() {
     const user = document.getElementById('loginUser').value;
     const pass = document.getElementById('loginPass').value;
     
-    // Verificar si existe el usuario y la contraseña coincide
     if (USERS[user] && USERS[user].password === pass) {
         isAdmin = true;
         isSuperAdmin = (user === 'superadmin');
         
-        // Ocultar modal de login
         const loginModal = document.getElementById('loginModal');
         if (loginModal) {
             loginModal.classList.remove('active');
             loginModal.style.display = 'none';
         }
         
-        // Mostrar elementos comunes de admin
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('visible'));
         document.querySelectorAll('.admin-only-block').forEach(el => el.classList.add('visible'));
         
-        // Si es superadmin, mostrar elementos adicionales
         if (isSuperAdmin) {
             document.querySelectorAll('.superadmin-only').forEach(el => {
                 el.classList.add('visible');
@@ -2161,11 +2181,9 @@ function verificarLogin() {
             showToast('✅ Bienvenido Administrador', 'success');
         }
         
-        // Recargar datos
         refreshAll();
         loadPatients();
         
-        // Si hay página de inversiones, cargarla también
         if (isSuperAdmin && typeof loadInversionistas === 'function') {
             loadInversionistas();
         }
@@ -2174,503 +2192,463 @@ function verificarLogin() {
     }
 }
 
-    function checkAuth() {
-        const loginModal = document.getElementById('loginModal');
-        if (!isAdmin && loginModal) {
-            loginModal.style.display = 'flex';
-            loginModal.classList.add('active');
-        }
+function checkAuth() {
+    const loginModal = document.getElementById('loginModal');
+    if (!isAdmin && loginModal) {
+        loginModal.style.display = 'flex';
+        loginModal.classList.add('active');
     }
+}
 
-    function showPage(pageName, el) {
-        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-        const targetPage = document.getElementById(`page-${pageName}`);
-        if (targetPage) targetPage.style.display = 'block';
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        if (el) el.classList.add('active');
-        if (pageName === 'dashboard') refreshAll();
-        if (pageName === 'patients') loadPatients();
-        if (pageName === 'nomina') { loadEmpleados(); loadNominas(); }
-        if (pageName === 'servicios') loadServicios();
-        if (pageName === 'settings') { loadPlanes(); loadCostos(); }
-        if (pageName === 'historia') cargarPacientesSelects();
-       if (pageName === 'pagos') { cargarListaPacientesAdeudos();}
-        if (pageName === 'medicamentos') { cargarPacientesSelects(); cargarMedicamentosSelect(); cargarMedicamentosPorPacienteSelect(); }
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function showPage(pageName, el) {
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    const targetPage = document.getElementById(`page-${pageName}`);
+    if (targetPage) targetPage.style.display = 'block';
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    if (el) el.classList.add('active');
+    
+    if (pageName === 'dashboard') refreshAll();
+    if (pageName === 'patients') loadPatients();
+    if (pageName === 'nomina') { loadEmpleados(); loadNominas(); }
+    if (pageName === 'servicios') loadServicios();
+    if (pageName === 'settings') { loadPlanes(); loadCostos(); }
+    if (pageName === 'historia') cargarPacientesSelects();
+    if (pageName === 'pagos') { cargarListaPacientesAdeudos(); }
+    if (pageName === 'medicamentos') { cargarPacientesSelects(); cargarMedicamentosSelect(); cargarMedicamentosPorPacienteSelect(); }
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function refreshAll() {
+    showLoading(true);
+    try {
+        await loadPatients();
+        await loadFinancialConfig();
+        updateDashboard();
+    } catch (err) {
+        console.error('Error en refreshAll:', err);
+        showToast(err.message, 'error');
+    } finally { showLoading(false); }
+}
+
+async function loadFinancialConfig() {
+    try {
+        const config = await apiFetch('/api/config');
+        window.financialConfig = {
+            pricePerPatient: config.pricePerPatient || 12000,
+            maxCapacity: config.maxCapacity || 12,
+            costs: config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
+        };
+    } catch(e) {
+        console.error('Error cargando config financiera:', e);
+        window.financialConfig = {
+            pricePerPatient: 12000,
+            maxCapacity: 12,
+            costs: { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
+        };
     }
+}
 
-    async function refreshAll() {
-        showLoading(true);
+function calculateTotalCosts(income) {
+    const c = window.financialConfig?.costs || { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 };
+    const contingency = income * (c.contingencyPercent / 100);
+    return c.personal + c.food + c.medical + c.utilities + c.supplies + c.insurance + contingency;
+}
+
+function generateProjection(patientCount) {
+    const income = [], costs = [], profit = [];
+    let cumProfit = -(window.financialConfig?.initialInvestment || 100000);
+    const price = window.financialConfig?.pricePerPatient || 12000;
+    const maxCap = window.financialConfig?.maxCapacity || 12;
+    for (let i = 1; i <= 12; i++) {
+        const cur = Math.min(patientCount + Math.floor(i / 2), maxCap);
+        const inc = cur * price;
+        const cost = calculateTotalCosts(inc);
+        cumProfit += inc - cost;
+        income.push(inc);
+        costs.push(cost);
+        profit.push(cumProfit);
+    }
+    return { income, costs, profit };
+}
+
+function updateDashboard() {
+    const activePatients = pacientes.filter(p => p.status === 'active').length;
+    const totalIncome = activePatients * (window.financialConfig?.pricePerPatient || 12000);
+    const totalCosts = calculateTotalCosts(totalIncome);
+    const netProfit = totalIncome - totalCosts;
+    const totalEl = document.getElementById('totalPatients');
+    if (totalEl) totalEl.textContent = activePatients;
+    const incomeEl = document.getElementById('monthlyIncome');
+    if (incomeEl) incomeEl.textContent = formatCurrency(totalIncome);
+    const costsEl = document.getElementById('monthlyCosts');
+    if (costsEl) costsEl.textContent = formatCurrency(totalCosts);
+    const profitEl = document.getElementById('netProfit');
+    if (profitEl) {
+        profitEl.textContent = formatCurrency(netProfit);
+        profitEl.style.color = netProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+    updateCharts(activePatients);
+}
+
+function initCharts() {
+    const ctx1 = document.getElementById('financialChart')?.getContext('2d');
+    if (ctx1) {
+        charts.financial = new Chart(ctx1, {
+            type: 'line',
+            data: { labels: ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7','Mes 8','Mes 9','Mes 10','Mes 11','Mes 12'], datasets: [
+                { label: 'Ingresos', data: [], borderColor: '#48bb78', fill: true, tension: 0.4 },
+                { label: 'Costos', data: [], borderColor: '#f56565', fill: true, tension: 0.4 },
+                { label: 'Utilidad Acumulada', data: [], borderColor: '#667eea', borderDash: [5,5], tension: 0.4 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' } } } }
+        });
+    }
+    const ctx2 = document.getElementById('costChart')?.getContext('2d');
+    if (ctx2) {
+        charts.cost = new Chart(ctx2, {
+            type: 'doughnut',
+            data: { labels: ['Personal','Alimentación','Médicos','Servicios','Insumos','Seguros','Contingencia'], datasets: [{ data: [], backgroundColor: ['#667eea','#ed8936','#f56565','#4299e1','#764ba2','#48bb78','#cbd5e0'] }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+}
+
+function updateCharts(patientCount) {
+    if (!charts.financial) initCharts();
+    const c = window.financialConfig?.costs || {};
+    const income = patientCount * (window.financialConfig?.pricePerPatient || 12000);
+    const contingency = income * ((c.contingencyPercent || 10) / 100);
+    const proj = generateProjection(patientCount);
+    if (charts.financial) {
+        charts.financial.data.datasets[0].data = proj.income;
+        charts.financial.data.datasets[1].data = proj.costs;
+        charts.financial.data.datasets[2].data = proj.profit;
+        charts.financial.update();
+    }
+    if (charts.cost) {
+        charts.cost.data.datasets[0].data = [c.personal || 0, c.food || 0, c.medical || 0, c.utilities || 0, c.supplies || 0, c.insurance || 0, contingency];
+        charts.cost.update();
+    }
+}
+
+function setupKPIClicks() {
+    const kpiCards = document.querySelectorAll('.kpi-card');
+    if (kpiCards.length >= 4) {
+        kpiCards[1].style.cursor = 'pointer';
+        kpiCards[1].onclick = () => showToast('Ingresos Mensuales', 'info');
+        kpiCards[2].style.cursor = 'pointer';
+        kpiCards[2].onclick = () => showToast('Costos Mensuales', 'info');
+        kpiCards[0].style.cursor = 'pointer';
+        kpiCards[0].onclick = () => showActivePatients();
+    }
+}
+
+function showActivePatients() {
+    const filterStatus = document.getElementById('filterStatus');
+    if (filterStatus) filterStatus.value = 'active';
+    loadPatients();
+    showPage('patients', document.querySelector('.nav-item[onclick*="patients"]'));
+    showToast('Mostrando solo pacientes activos', 'info');
+}
+
+// ============================================================
+// PACIENTES
+// ============================================================
+async function loadPatients() {
+    const search = document.getElementById('patientSearch')?.value || '';
+    const status = document.getElementById('filterStatus')?.value || '';
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    try {
+        pacientes = await apiFetch(`/api/patients?${params}`);
+    } catch(e) {
+        console.error('Error cargando pacientes:', e);
+        pacientes = [];
+    }
+    for (const p of pacientes) {
         try {
-            await loadPatients();
-            await loadFinancialConfig();
-            updateDashboard();
-        } catch (err) {
-            console.error('Error en refreshAll:', err);
-            showToast(err.message, 'error');
-        } finally { showLoading(false); }
+            const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
+            p.adeudo = adeudoData.adeudo;
+        } catch(e) { p.adeudo = 0; }
     }
+    renderPatients();
+    return pacientes;
+}
 
-    async function loadFinancialConfig() {
-        try {
-            const config = await apiFetch('/api/config');
-            window.financialConfig = {
-                pricePerPatient: config.pricePerPatient || 12000,
-                maxCapacity: config.maxCapacity || 12,
-                costs: config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
-            };
-        } catch(e) {
-            console.error('Error cargando config financiera:', e);
-            window.financialConfig = {
-                pricePerPatient: 12000,
-                maxCapacity: 12,
-                costs: { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 }
-            };
-        }
+function renderPatients() {
+    const grid = document.getElementById('patientsGrid');
+    if (!grid) return;
+    if (pacientes.length === 0) {
+        grid.innerHTML = '<div class="card empty-state"><i class="fas fa-users-slash"></i><h3>No hay pacientes registrados</h3><button class="btn btn-primary" onclick="openPatientModal()">Agregar Paciente</button></div>';
+        return;
     }
-
-    function calculateTotalCosts(income) {
-        const c = window.financialConfig?.costs || { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000, contingencyPercent: 10 };
-        const contingency = income * (c.contingencyPercent / 100);
-        return c.personal + c.food + c.medical + c.utilities + c.supplies + c.insurance + contingency;
-    }
-
-    function generateProjection(patientCount) {
-        const income = [], costs = [], profit = [];
-        let cumProfit = -(window.financialConfig?.initialInvestment || 100000);
-        const price = window.financialConfig?.pricePerPatient || 12000;
-        const maxCap = window.financialConfig?.maxCapacity || 12;
-        for (let i = 1; i <= 12; i++) {
-            const cur = Math.min(patientCount + Math.floor(i / 2), maxCap);
-            const inc = cur * price;
-            const cost = calculateTotalCosts(inc);
-            cumProfit += inc - cost;
-            income.push(inc);
-            costs.push(cost);
-            profit.push(cumProfit);
-        }
-        return { income, costs, profit };
-    }
-
-    function updateDashboard() {
-        const activePatients = pacientes.filter(p => p.status === 'active').length;
-        const totalIncome = activePatients * (window.financialConfig?.pricePerPatient || 12000);
-        const totalCosts = calculateTotalCosts(totalIncome);
-        const netProfit = totalIncome - totalCosts;
-        const totalEl = document.getElementById('totalPatients');
-        if (totalEl) totalEl.textContent = activePatients;
-        const incomeEl = document.getElementById('monthlyIncome');
-        if (incomeEl) incomeEl.textContent = formatCurrency(totalIncome);
-        const costsEl = document.getElementById('monthlyCosts');
-        if (costsEl) costsEl.textContent = formatCurrency(totalCosts);
-        const profitEl = document.getElementById('netProfit');
-        if (profitEl) {
-            profitEl.textContent = formatCurrency(netProfit);
-            profitEl.style.color = netProfit >= 0 ? 'var(--success)' : 'var(--danger)';
-        }
-        updateCharts(activePatients);
-    }
-
-    function initCharts() {
-        const ctx1 = document.getElementById('financialChart')?.getContext('2d');
-        if (ctx1) {
-            charts.financial = new Chart(ctx1, {
-                type: 'line',
-                data: { labels: ['Mes 1','Mes 2','Mes 3','Mes 4','Mes 5','Mes 6','Mes 7','Mes 8','Mes 9','Mes 10','Mes 11','Mes 12'], datasets: [
-                    { label: 'Ingresos', data: [], borderColor: '#48bb78', fill: true, tension: 0.4 },
-                    { label: 'Costos', data: [], borderColor: '#f56565', fill: true, tension: 0.4 },
-                    { label: 'Utilidad Acumulada', data: [], borderColor: '#667eea', borderDash: [5,5], tension: 0.4 }
-                ]},
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' } } } }
-            });
-        }
-        const ctx2 = document.getElementById('costChart')?.getContext('2d');
-        if (ctx2) {
-            charts.cost = new Chart(ctx2, {
-                type: 'doughnut',
-                data: { labels: ['Personal','Alimentación','Médicos','Servicios','Insumos','Seguros','Contingencia'], datasets: [{ data: [], backgroundColor: ['#667eea','#ed8936','#f56565','#4299e1','#764ba2','#48bb78','#cbd5e0'] }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-    }
-
-    function updateCharts(patientCount) {
-        if (!charts.financial) initCharts();
-        const c = window.financialConfig?.costs || {};
-        const income = patientCount * (window.financialConfig?.pricePerPatient || 12000);
-        const contingency = income * ((c.contingencyPercent || 10) / 100);
-        const proj = generateProjection(patientCount);
-        if (charts.financial) {
-            charts.financial.data.datasets[0].data = proj.income;
-            charts.financial.data.datasets[1].data = proj.costs;
-            charts.financial.data.datasets[2].data = proj.profit;
-            charts.financial.update();
-        }
-        if (charts.cost) {
-            charts.cost.data.datasets[0].data = [c.personal || 0, c.food || 0, c.medical || 0, c.utilities || 0, c.supplies || 0, c.insurance || 0, contingency];
-            charts.cost.update();
-        }
-    }
-
-    function abrirDashboardPaciente(pacienteId) {
-        openPacienteDashboard(pacienteId);
-    }
-
-    async function mostrarHistoriaRapida(pacienteId, event) {
-        event.stopPropagation();
-        const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
-        const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
-        if (!expandDiv || !innerDiv) return;
-        if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'historia') {
-            expandDiv.classList.remove('show');
-            return;
-        }
-        expandDiv.dataset.currentType = 'historia';
-        innerDiv.innerHTML = 'Cargando historial...';
-        expandDiv.classList.add('show');
-        try {
-            const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
-            if (historial.length === 0) {
-                innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-notes-medical"></i> Sin historial clínico registrado</p>';
-            } else {
-                innerDiv.innerHTML = `
-                    <h4><i class="fas fa-history"></i> Últimos registros</h4>
-                    <table class="table" style="font-size:0.85em;">
-                        <thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead>
-                        <tbody>${historial.slice(0,3).map(h => `<tr><td>${formatDate(h.fecha)}</td><td>${h.presion_arterial||'-'}</td><td>${h.frecuencia_cardiaca||'-'}</td><td>${h.temperatura||'-'}°C</td><td>${h.diagnostico?.substring(0,25)||'-'}</td></tr>`).join('')}</tbody>
-                    </table>
-                    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verHistoriaCompleta(${pacienteId}); event.stopPropagation();">Ver historial completo</button>
-                `;
-            }
-        } catch (err) {
-            innerDiv.innerHTML = `<p>Error: ${err.message}</p>`;
-        }
-    }
-
-    async function mostrarMedicamentosRapidos(pacienteId, event) {
-        event.stopPropagation();
-        const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
-        const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
-        if (!expandDiv || !innerDiv) return;
-        if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'medicamentos') {
-            expandDiv.classList.remove('show');
-            return;
-        }
-        expandDiv.dataset.currentType = 'medicamentos';
-        innerDiv.innerHTML = 'Cargando medicamentos...';
-        expandDiv.classList.add('show');
-        try {
-            const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
-            if (medicamentosPaciente.length === 0) {
-                innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
-            } else {
-                innerDiv.innerHTML = `
-                    <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        ${medicamentosPaciente.map(m => `<div class="med-item" style="margin:0;"><div class="med-time"><i class="fas fa-clock"></i> ${m.horario?m.horario.join(', '):'Horario flexible'}</div><div class="med-name">${m.medicamento_nombre}</div><div class="med-dose">${m.dosis}</div></div>`).join('')}
-                    </div>
-                    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosCompleto(${pacienteId}); event.stopPropagation();">Ver medicamentos completo</button>
-                `;
-            }
-        } catch (err) {
-            innerDiv.innerHTML = `<p>Error: ${err.message}</p>`;
-        }
-    }
-
-    function verHistoriaCompleta(pacienteId) { verHistoriaPaciente(pacienteId); }
-    function verMedicamentosCompleto(pacienteId) { verMedicamentosPaciente(pacienteId); }
-
-    function setupKPIClicks() {
-        const kpiCards = document.querySelectorAll('.kpi-card');
-        if (kpiCards.length >= 4) {
-            kpiCards[1].style.cursor = 'pointer';
-            kpiCards[1].onclick = () => showToast('Ingresos Mensuales', 'info');
-            kpiCards[2].style.cursor = 'pointer';
-            kpiCards[2].onclick = () => showToast('Costos Mensuales', 'info');
-            kpiCards[0].style.cursor = 'pointer';
-            kpiCards[0].onclick = () => showActivePatients();
-        }
-    }
-
-    function showActivePatients() {
-        const filterStatus = document.getElementById('filterStatus');
-        if (filterStatus) filterStatus.value = 'active';
-        loadPatients();
-        showPage('patients', document.querySelector('.nav-item[onclick*="patients"]'));
-        showToast('Mostrando solo pacientes activos', 'info');
-    }
-
-    async function loadPatients() {
-        const search = document.getElementById('patientSearch')?.value || '';
-        const status = document.getElementById('filterStatus')?.value || '';
-        const params = new URLSearchParams();
-        if (search) params.append('search', search);
-        if (status) params.append('status', status);
-        try {
-            pacientes = await apiFetch(`/api/patients?${params}`);
-        } catch(e) {
-            console.error('Error cargando pacientes:', e);
-            pacientes = [];
-        }
-        for (const p of pacientes) {
-            try {
-                const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
-                p.adeudo = adeudoData.adeudo;
-            } catch(e) { p.adeudo = 0; }
-        }
-        renderPatients();
-        return pacientes;
-    }
-
-    function renderPatients() {
-        const grid = document.getElementById('patientsGrid');
-        if (!grid) return;
-        if (pacientes.length === 0) {
-            grid.innerHTML = '<div class="card empty-state"><i class="fas fa-users-slash"></i><h3>No hay pacientes registrados</h3><button class="btn btn-primary" onclick="openPatientModal()">Agregar Paciente</button></div>';
-            return;
-        }
-        grid.innerHTML = pacientes.map((p, index) => {
-            const colorIndex = index % 8;
-            const age = calcularEdad(p.birthdate);
-            let horasActividad = p.horas_actividad || Math.floor(Math.random() * 24) + 1;
-            let actividadClass = 'activity-low';
-            if (horasActividad >= 6) actividadClass = 'activity-good';
-            else if (horasActividad >= 3) actividadClass = 'activity-medium';
-            let actividadIcon = '🛌';
-            if (horasActividad >= 6) actividadIcon = '🏃';
-            else if (horasActividad >= 3) actividadIcon = '🚶';
-            let planNombre = 'Sin plan';
-            if (p.plan_id == 1) planNombre = 'Básico';
-            else if (p.plan_id == 2) planNombre = 'Intermedio';
-            else if (p.plan_id == 3) planNombre = 'Más';
-            const statusBadge = p.status === 'active' ?
-                '<span class="badge badge-success"><i class="fas fa-circle"></i> Activo</span>' :
-                '<span class="badge badge-warning"><i class="fas fa-circle"></i> Inactivo</span>';
-            const tieneAdeudo = p.adeudo && p.adeudo > 0;
-            const adeudoBadge = tieneAdeudo ? '<span class="alert-badge"><i class="fas fa-exclamation-triangle"></i> Adeudo</span>' : '';
-            return `
-                <div class="patient-card glass-card" data-color="${colorIndex}" data-id="${p.id}">
-                    <div class="patient-header" onclick="abrirDashboardPaciente(${p.id})" style="cursor:pointer;">
-                        <div class="patient-avatar"><i class="fas fa-user-circle"></i></div>
-                        <div class="patient-name">${escapeHtml(p.name) || 'Sin nombre'}</div>
-                        <div style="font-size:0.85em; opacity:0.9;">${age} años</div>
-                        <div style="margin-top: 6px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
-                            ${statusBadge}
-                            ${adeudoBadge}
-                        </div>
-                    </div>
-                    <div class="patient-body">
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-phone"></i> Tel</span>
-                            <strong>${p.phone || 'N/A'}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-tag"></i> Plan</span>
-                            <strong>${planNombre}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-bed"></i> Cama</span>
-                            <strong>${p.cama_asignada || 'N/A'}</strong>
-                        </div>
-                        <div class="patient-info-row">
-                            <span><i class="fas fa-clock"></i> Actividad</span>
-                            <span class="activity-indicator ${actividadClass}">${actividadIcon} ${horasActividad}h</span>
-                        </div>
-                        <div class="card-actions">
-                            <button class="card-action-btn" onclick="mostrarHistoriaRapida(${p.id}, event)" style="background: rgba(16,185,129,0.8);">
-                                <i class="fas fa-notes-medical"></i> Historia
-                            </button>
-                            <button class="card-action-btn" onclick="mostrarMedicamentosRapidos(${p.id}, event)" style="background: rgba(245,158,11,0.8);">
-                                <i class="fas fa-pills"></i> Meds
-                            </button>
-                            <button class="card-action-btn admin-only" onclick="event.stopPropagation(); openEditQuickModal(${p.id})" style="background: rgba(139,92,246,0.8);">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
-                        </div>
-                        <div id="expand-content-${p.id}" class="expandable-content">
-                            <div id="expand-inner-${p.id}">Cargando...</div>
-                        </div>
+    grid.innerHTML = pacientes.map((p, index) => {
+        const colorIndex = index % 8;
+        const age = calcularEdad(p.birthdate);
+        let horasActividad = p.horas_actividad || Math.floor(Math.random() * 24) + 1;
+        let actividadClass = 'activity-low';
+        if (horasActividad >= 6) actividadClass = 'activity-good';
+        else if (horasActividad >= 3) actividadClass = 'activity-medium';
+        let actividadIcon = '🛌';
+        if (horasActividad >= 6) actividadIcon = '🏃';
+        else if (horasActividad >= 3) actividadIcon = '🚶';
+        let planNombre = 'Sin plan';
+        if (p.plan_id == 1) planNombre = 'Básico';
+        else if (p.plan_id == 2) planNombre = 'Intermedio';
+        else if (p.plan_id == 3) planNombre = 'Más';
+        const statusBadge = p.status === 'active' ?
+            '<span class="badge badge-success"><i class="fas fa-circle"></i> Activo</span>' :
+            '<span class="badge badge-warning"><i class="fas fa-circle"></i> Inactivo</span>';
+        const tieneAdeudo = p.adeudo && p.adeudo > 0;
+        const adeudoBadge = tieneAdeudo ? '<span class="alert-badge"><i class="fas fa-exclamation-triangle"></i> Adeudo</span>' : '';
+        return `
+            <div class="patient-card glass-card" data-color="${colorIndex}" data-id="${p.id}">
+                <div class="patient-header" onclick="abrirDashboardPaciente(${p.id})" style="cursor:pointer;">
+                    <div class="patient-avatar"><i class="fas fa-user-circle"></i></div>
+                    <div class="patient-name">${escapeHtml(p.name) || 'Sin nombre'}</div>
+                    <div style="font-size:0.85em; opacity:0.9;">${age} años</div>
+                    <div style="margin-top: 6px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                        ${statusBadge}
+                        ${adeudoBadge}
                     </div>
                 </div>
-            `;
-        }).join('');
-    }
+                <div class="patient-body">
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-phone"></i> Tel</span>
+                        <strong>${p.phone || 'N/A'}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-tag"></i> Plan</span>
+                        <strong>${planNombre}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-bed"></i> Cama</span>
+                        <strong>${p.cama_asignada || 'N/A'}</strong>
+                    </div>
+                    <div class="patient-info-row">
+                        <span><i class="fas fa-clock"></i> Actividad</span>
+                        <span class="activity-indicator ${actividadClass}">${actividadIcon} ${horasActividad}h</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="card-action-btn" onclick="mostrarHistoriaRapida(${p.id}, event)" style="background: rgba(16,185,129,0.8);">
+                            <i class="fas fa-notes-medical"></i> Historia
+                        </button>
+                        <button class="card-action-btn" onclick="mostrarMedicamentosRapidos(${p.id}, event)" style="background: rgba(245,158,11,0.8);">
+                            <i class="fas fa-pills"></i> Meds
+                        </button>
+                        <button class="card-action-btn admin-only" onclick="event.stopPropagation(); openEditQuickModal(${p.id})" style="background: rgba(139,92,246,0.8);">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                    <div id="expand-content-${p.id}" class="expandable-content">
+                        <div id="expand-inner-${p.id}">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
-    async function openPacienteDashboard(pacienteId) {
-        showLoading(true);
-        try {
-            const paciente = await apiFetch(`/api/patients/${pacienteId}`);
-            const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
-            const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
-            let planNombre = 'Sin plan';
-            if (paciente.plan_id == 1) planNombre = 'Básico - $8,000';
-            else if (paciente.plan_id == 2) planNombre = 'Intermedio - $12,000';
-            else if (paciente.plan_id == 3) planNombre = 'Más - $16,000';
-            document.getElementById('dashboardPacienteNombre').textContent = paciente.name || 'Paciente';
-            document.getElementById('dashboardNombre').textContent = paciente.name || 'Sin nombre';
-            document.getElementById('dashboardEdad').innerHTML = `<i class="fas fa-calendar-alt"></i> ${calcularEdad(paciente.birthdate)} años`;
-            document.getElementById('dashboardTelefono').textContent = paciente.phone || 'N/A';
-            document.getElementById('dashboardContacto').textContent = `${paciente.contact || 'N/A'} - ${paciente.contact_phone || ''}`;
-            document.getElementById('dashboardCama').textContent = paciente.cama_asignada || 'No asignada';
-            document.getElementById('dashboardPlan').textContent = planNombre;
-            document.getElementById('dashboardCondiciones').textContent = paciente.condiciones_cronicas || 'Sin condiciones registradas';
-            const avatarDiv = document.getElementById('dashboardAvatar');
-            if (avatarDiv) {
-                const iniciales = paciente.name ? paciente.name.charAt(0).toUpperCase() : 'U';
-                avatarDiv.innerHTML = `<span style="font-size: 2em; font-weight: 600;">${iniciales}</span>`;
-            }
-            const medicamentosDiv = document.getElementById('dashboardMedicamentos');
-            if (medicamentosDiv) {
-                medicamentosDiv.innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">No hay medicamentos asignados</p>' :
-                    `<div class="med-timeline">${medicamentosPaciente.map(m => `<div class="med-item"><div class="med-time"><i class="fas fa-clock"></i> ${m.horario?m.horario.join(', '):'Horario flexible'}</div><div class="med-name">${m.medicamento_nombre||'Medicamento'}</div><div class="med-dose">${m.dosis||'Dosis no especificada'}</div></div>`).join('')}</div>`;
-            }
-            const signosDiv = document.getElementById('dashboardSignos');
-            if (signosDiv) {
-                signosDiv.innerHTML = historial.length === 0 ? '<p class="empty-state">No hay registros de signos vitales</p>' :
-                    `<table class="table"><thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temperatura</th><th>Diagnóstico</th></tr></thead><tbody>${historial.slice(0,5).map(h => `<tr><td>${formatDate(h.fecha)}</td><td>${h.presion_arterial||'-'}</td><td>${h.frecuencia_cardiaca||'-'} lpm</td><td>${h.temperatura||'-'}°C</td><td>${h.diagnostico?.substring(0,40)||'-'}</td></tr>`).join('')}</tbody></table>`;
-            }
-            document.getElementById('pacienteDashboardModal').classList.add('active');
-        } catch (err) {
-            showToast(err.message, 'error');
-        } finally {
-            showLoading(false);
+function abrirDashboardPaciente(pacienteId) {
+    openPacienteDashboard(pacienteId);
+}
+
+async function openPacienteDashboard(pacienteId) {
+    showLoading(true);
+    try {
+        const paciente = await apiFetch(`/api/patients/${pacienteId}`);
+        const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
+        const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+        let planNombre = 'Sin plan';
+        if (paciente.plan_id == 1) planNombre = 'Básico - $8,000';
+        else if (paciente.plan_id == 2) planNombre = 'Intermedio - $12,000';
+        else if (paciente.plan_id == 3) planNombre = 'Más - $16,000';
+        document.getElementById('dashboardPacienteNombre').textContent = paciente.name || 'Paciente';
+        document.getElementById('dashboardNombre').textContent = paciente.name || 'Sin nombre';
+        document.getElementById('dashboardEdad').innerHTML = `<i class="fas fa-calendar-alt"></i> ${calcularEdad(paciente.birthdate)} años`;
+        document.getElementById('dashboardTelefono').textContent = paciente.phone || 'N/A';
+        document.getElementById('dashboardContacto').textContent = `${paciente.contact || 'N/A'} - ${paciente.contact_phone || ''}`;
+        document.getElementById('dashboardCama').textContent = paciente.cama_asignada || 'No asignada';
+        document.getElementById('dashboardPlan').textContent = planNombre;
+        document.getElementById('dashboardCondiciones').textContent = paciente.condiciones_cronicas || 'Sin condiciones registradas';
+        const avatarDiv = document.getElementById('dashboardAvatar');
+        if (avatarDiv) {
+            const iniciales = paciente.name ? paciente.name.charAt(0).toUpperCase() : 'U';
+            avatarDiv.innerHTML = `<span style="font-size: 2em; font-weight: 600;">${iniciales}</span>`;
+        }
+        const medicamentosDiv = document.getElementById('dashboardMedicamentos');
+        if (medicamentosDiv) {
+            medicamentosDiv.innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">No hay medicamentos asignados</p>' :
+                `<div class="med-timeline">${medicamentosPaciente.map(m => `<div class="med-item"><div class="med-time"><i class="fas fa-clock"></i> ${m.horario?m.horario.join(', '):'Horario flexible'}</div><div class="med-name">${m.medicamento_nombre||'Medicamento'}</div><div class="med-dose">${m.dosis||'Dosis no especificada'}</div></div>`).join('')}</div>`;
+        }
+        const signosDiv = document.getElementById('dashboardSignos');
+        if (signosDiv) {
+            signosDiv.innerHTML = historial.length === 0 ? '<p class="empty-state">No hay registros de signos vitales</p>' :
+                `<table class="table"><thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temperatura</th><th>Diagnóstico</th></tr></thead><tbody>${historial.slice(0,5).map(h => `<tr><td>${formatDate(h.fecha)}</td><td>${h.presion_arterial||'-'}</td><td>${h.frecuencia_cardiaca||'-'} lpm</td><td>${h.temperatura||'-'}°C</td><td>${h.diagnostico?.substring(0,40)||'-'}</td></tr>`).join('')}</tbody></table>`;
+        }
+        document.getElementById('pacienteDashboardModal').classList.add('active');
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function closePacienteDashboard() {
+    document.getElementById('pacienteDashboardModal').classList.remove('active');
+}
+
+function openPatientModal(patientId = null) {
+    ['patientId','patientName','patientBirthdate','patientCURP','patientPhone','patientContact','patientContactPhone','patientCama','patientAlergias','patientCondiciones'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('modalTitle').textContent = 'Nuevo Paciente';
+    if (patientId) {
+        const p = pacientes.find(x => x.id === patientId);
+        if (p) {
+            document.getElementById('patientId').value = p.id;
+            document.getElementById('patientName').value = p.name || '';
+            document.getElementById('patientBirthdate').value = p.birthdate ? p.birthdate.split('T')[0] : '';
+            document.getElementById('patientCURP').value = p.curp || '';
+            document.getElementById('patientPhone').value = p.phone || '';
+            document.getElementById('patientContact').value = p.contact || '';
+            document.getElementById('patientContactPhone').value = p.contact_phone || '';
+            document.getElementById('patientCama').value = p.cama_asignada || '';
+            document.getElementById('patientAlergias').value = p.alergias || '';
+            document.getElementById('patientCondiciones').value = p.condiciones_cronicas || '';
+            document.getElementById('modalTitle').textContent = 'Editar Paciente';
+            const planSelect = document.getElementById('patientPlan');
+            if (planSelect && p.plan_id) planSelect.value = p.plan_id;
         }
     }
+    document.getElementById('patientModal').classList.add('active');
+}
 
-    function closePacienteDashboard() {
-        document.getElementById('pacienteDashboardModal').classList.remove('active');
-    }
+function closePatientModal() {
+    document.getElementById('patientModal').classList.remove('active');
+}
 
-    async function verHistoriaPaciente(id) {
-        await cargarPacientesSelects();
-        const select = document.getElementById('historiaPacienteSelect');
-        if (select) { select.value = id; await loadHistoriaPaciente(); }
-        showPage('historia', document.querySelector('.nav-item[onclick*="historia"]'));
-    }
-
-    async function verMedicamentosPaciente(id) {
-        await cargarPacientesSelects();
-        const select = document.getElementById('verMedicamentosPaciente');
-        if (select) { select.value = id; await cargarMedicamentosPaciente(); }
-        showPage('medicamentos', document.querySelector('.nav-item[onclick*="medicamentos"]'));
-    }
-
-    function openPatientModal(patientId = null) {
-        ['patientId','patientName','patientBirthdate','patientCURP','patientPhone','patientContact','patientContactPhone','patientCama','patientAlergias','patientCondiciones'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
-        document.getElementById('modalTitle').textContent = 'Nuevo Paciente';
-        if (patientId) {
-            const p = pacientes.find(x => x.id === patientId);
-            if (p) {
-                document.getElementById('patientId').value = p.id;
-                document.getElementById('patientName').value = p.name || '';
-                document.getElementById('patientBirthdate').value = p.birthdate ? p.birthdate.split('T')[0] : '';
-                document.getElementById('patientCURP').value = p.curp || '';
-                document.getElementById('patientPhone').value = p.phone || '';
-                document.getElementById('patientContact').value = p.contact || '';
-                document.getElementById('patientContactPhone').value = p.contact_phone || '';
-                document.getElementById('patientCama').value = p.cama_asignada || '';
-                document.getElementById('patientAlergias').value = p.alergias || '';
-                document.getElementById('patientCondiciones').value = p.condiciones_cronicas || '';
-                document.getElementById('modalTitle').textContent = 'Editar Paciente';
-                const planSelect = document.getElementById('patientPlan');
-                if (planSelect && p.plan_id) planSelect.value = p.plan_id;
-            }
-        }
-        document.getElementById('patientModal').classList.add('active');
-    }
-
-    function closePatientModal() {
-        document.getElementById('patientModal').classList.remove('active');
-    }
-
-    async function savePatient() {
-        const id = document.getElementById('patientId')?.value;
-        const payload = {
-            name: document.getElementById('patientName')?.value || '',
-            birthdate: document.getElementById('patientBirthdate')?.value || null,
-            curp: document.getElementById('patientCURP')?.value || null,
-            phone: document.getElementById('patientPhone')?.value || null,
-            contact: document.getElementById('patientContact')?.value || null,
-            contact_phone: document.getElementById('patientContactPhone')?.value || null,
-            cama_asignada: document.getElementById('patientCama')?.value || null,
-            alergias: document.getElementById('patientAlergias')?.value || null,
-            condiciones_cronicas: document.getElementById('patientCondiciones')?.value || null,
-            plan_id: document.getElementById('patientPlan')?.value || null
-        };
-        try {
-            if (id) {
-                await apiFetch(`/api/patients/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-                showToast('Paciente actualizado');
-            } else {
-                await apiFetch('/api/patients', { method: 'POST', body: JSON.stringify(payload) });
-                showToast('Paciente registrado');
-            }
-            closePatientModal();
-            await loadPatients();
-            refreshAll();
-        } catch (err) { showToast(err.message, 'error'); }
-    }
-
-    async function deletePatient(id) {
-        if (!confirm('¿Eliminar este paciente?')) return;
-        try {
-            await apiFetch(`/api/patients/${id}`, { method: 'DELETE' });
-            showToast('Paciente eliminado');
-            await loadPatients();
-            refreshAll();
-        } catch (err) { showToast(err.message, 'error'); }
-    }
-
-    function openEditQuickModal(pacienteId) {
-        const p = pacientes.find(x => x.id === pacienteId);
-        if (!p) return;
-        document.getElementById('editQuickId').value = p.id;
-        document.getElementById('editQuickName').value = p.name || '';
-        document.getElementById('editQuickPhone').value = p.phone || '';
-        document.getElementById('editQuickContact').value = p.contact || '';
-        document.getElementById('editQuickCama').value = p.cama_asignada || '';
-        document.getElementById('editQuickPlan').value = p.plan_id || '1';
-        document.getElementById('editQuickModal').classList.add('active');
-    }
-
-    function closeEditQuickModal() {
-        document.getElementById('editQuickModal').classList.remove('active');
-    }
-
-    async function saveEditQuick() {
-        const id = document.getElementById('editQuickId')?.value;
-        const payload = {
-            name: document.getElementById('editQuickName')?.value || '',
-            phone: document.getElementById('editQuickPhone')?.value || '',
-            contact: document.getElementById('editQuickContact')?.value || '',
-            cama_asignada: document.getElementById('editQuickCama')?.value || '',
-            plan_id: parseInt(document.getElementById('editQuickPlan')?.value || '1')
-        };
-        try {
+async function savePatient() {
+    const id = document.getElementById('patientId')?.value;
+    const payload = {
+        name: document.getElementById('patientName')?.value || '',
+        birthdate: document.getElementById('patientBirthdate')?.value || null,
+        curp: document.getElementById('patientCURP')?.value || null,
+        phone: document.getElementById('patientPhone')?.value || null,
+        contact: document.getElementById('patientContact')?.value || null,
+        contact_phone: document.getElementById('patientContactPhone')?.value || null,
+        cama_asignada: document.getElementById('patientCama')?.value || null,
+        alergias: document.getElementById('patientAlergias')?.value || null,
+        condiciones_cronicas: document.getElementById('patientCondiciones')?.value || null,
+        plan_id: document.getElementById('patientPlan')?.value || null
+    };
+    try {
+        if (id) {
             await apiFetch(`/api/patients/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
             showToast('Paciente actualizado');
-            closeEditQuickModal();
-            await loadPatients();
-            refreshAll();
-        } catch (err) { showToast(err.message, 'error'); }
-    }
+        } else {
+            await apiFetch('/api/patients', { method: 'POST', body: JSON.stringify(payload) });
+            showToast('Paciente registrado');
+        }
+        closePatientModal();
+        await loadPatients();
+        refreshAll();
+    } catch (err) { showToast(err.message, 'error'); }
+}
 
-    async function cargarPacientesSelects() {
-        try {
-            const pacientesList = await apiFetch('/api/patients');
-            const options = '<option value="">-- Seleccione --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            ['historiaPacienteSelect','historiaPaciente','asignarPaciente','verMedicamentosPaciente','pagosPacienteSelect','pagoPaciente'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = options;
-            });
-        } catch(e) { console.error('Error cargando selects de pacientes:', e); }
-    }
-let signosChart = null;
-let currentSignoVisible = 'presion';
+function openEditQuickModal(pacienteId) {
+    const p = pacientes.find(x => x.id === pacienteId);
+    if (!p) return;
+    document.getElementById('editQuickId').value = p.id;
+    document.getElementById('editQuickName').value = p.name || '';
+    document.getElementById('editQuickPhone').value = p.phone || '';
+    document.getElementById('editQuickContact').value = p.contact || '';
+    document.getElementById('editQuickCama').value = p.cama_asignada || '';
+    document.getElementById('editQuickPlan').value = p.plan_id || '1';
+    document.getElementById('editQuickModal').classList.add('active');
+}
 
-// Cargar historia clínica del paciente
+function closeEditQuickModal() {
+    document.getElementById('editQuickModal').classList.remove('active');
+}
+
+async function saveEditQuick() {
+    const id = document.getElementById('editQuickId')?.value;
+    const payload = {
+        name: document.getElementById('editQuickName')?.value || '',
+        phone: document.getElementById('editQuickPhone')?.value || '',
+        contact: document.getElementById('editQuickContact')?.value || '',
+        cama_asignada: document.getElementById('editQuickCama')?.value || '',
+        plan_id: parseInt(document.getElementById('editQuickPlan')?.value || '1')
+    };
+    try {
+        await apiFetch(`/api/patients/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        showToast('Paciente actualizado');
+        closeEditQuickModal();
+        await loadPatients();
+        refreshAll();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// HISTORIA CLÍNICA
+// ============================================================
+async function verHistoriaPaciente(id) {
+    await cargarPacientesSelects();
+    const select = document.getElementById('historiaPacienteSelect');
+    if (select) { select.value = id; await loadHistoriaPaciente(); }
+    showPage('historia', document.querySelector('.nav-item[onclick*="historia"]'));
+}
+
+async function mostrarHistoriaRapida(pacienteId, event) {
+    event.stopPropagation();
+    const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
+    const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
+    if (!expandDiv || !innerDiv) return;
+    if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'historia') {
+        expandDiv.classList.remove('show');
+        return;
+    }
+    expandDiv.dataset.currentType = 'historia';
+    innerDiv.innerHTML = 'Cargando historial...';
+    expandDiv.classList.add('show');
+    try {
+        const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
+        if (historial.length === 0) {
+            innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-notes-medical"></i> Sin historial clínico registrado</p>';
+        } else {
+            innerDiv.innerHTML = `
+                <h4><i class="fas fa-history"></i> Últimos registros</h4>
+                <table class="table" style="font-size:0.85em;">
+                    <thead><tr><th>Fecha</th><th>Presión</th><th>FC</th><th>Temp</th><th>Diagnóstico</th></tr></thead>
+                    <tbody>${historial.slice(0,3).map(h => `<tr><td>${formatDate(h.fecha)}</td><td>${h.presion_arterial||'-'}</td><td>${h.frecuencia_cardiaca||'-'}</td><td>${h.temperatura||'-'}°C</td><td>${h.diagnostico?.substring(0,25)||'-'}</td></tr>`).join('')}</tbody>
+                </table>
+                <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verHistoriaPaciente(${pacienteId}); event.stopPropagation();">Ver historial completo</button>
+            `;
+        }
+    } catch (err) {
+        innerDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+    }
+}
+
+async function cargarPacientesSelects() {
+    try {
+        const pacientesList = await apiFetch('/api/patients');
+        const options = '<option value="">-- Seleccione --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        ['historiaPacienteSelect','historiaPaciente','asignarPaciente','verMedicamentosPaciente','pagosPacienteSelect','pagoPaciente'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = options;
+        });
+    } catch(e) { console.error('Error cargando selects de pacientes:', e); }
+}
+
 async function loadHistoriaPaciente() {
     const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
     if (!pacienteId) { 
@@ -2683,7 +2661,6 @@ async function loadHistoriaPaciente() {
         const paciente = await apiFetch(`/api/patients/${pacienteId}`);
         const historial = await apiFetch(`/api/pacientes/${pacienteId}/historia`);
         
-        // Mostrar información del paciente en formato grid
         const pacienteInfoDiv = document.getElementById('pacienteInfo');
         if (pacienteInfoDiv) {
             pacienteInfoDiv.innerHTML = `
@@ -2710,14 +2687,12 @@ async function loadHistoriaPaciente() {
             `;
         }
         
-        // Mostrar línea de tiempo de registros
         const historialListDiv = document.getElementById('historialList');
         if (historialListDiv) {
             if (historial.length === 0) {
                 historialListDiv.innerHTML = '<div class="empty-state"><i class="fas fa-notes-medical"></i><p>No hay registros clínicos</p></div>';
             } else {
                 historialListDiv.innerHTML = historial.slice(0, 5).map(h => {
-                    // Determinar estado de signos vitales
                     const paStatus = h.presion_arterial ? getPresionStatus(h.presion_arterial) : null;
                     const fcStatus = h.frecuencia_cardiaca ? getFCStatus(h.frecuencia_cardiaca) : null;
                     const tempStatus = h.temperatura ? getTempStatus(h.temperatura) : null;
@@ -2749,7 +2724,6 @@ async function loadHistoriaPaciente() {
             }
         }
         
-        // Llenar tabla de historial completo
         const tableBody = document.querySelector('#historialTable tbody');
         if (tableBody) {
             tableBody.innerHTML = historial.map(h => `
@@ -2764,9 +2738,7 @@ async function loadHistoriaPaciente() {
             `).join('');
         }
         
-        // Actualizar gráfica de signos vitales
         updateSignosChart(historial);
-        
         document.getElementById('historiaContent').style.display = 'block';
         
     } catch(err) { 
@@ -2776,7 +2748,6 @@ async function loadHistoriaPaciente() {
     }
 }
 
-// Funciones para determinar estado de signos vitales
 function getPresionStatus(presion) {
     const [sistolica, diastolica] = presion.split('/').map(Number);
     if (sistolica >= 140 || diastolica >= 90) return 'vital-danger';
@@ -2796,12 +2767,10 @@ function getTempStatus(temp) {
     return 'vital-normal';
 }
 
-// Actualizar gráfica de signos vitales
 function updateSignosChart(historial) {
     const ctx = document.getElementById('signosVitalesChart')?.getContext('2d');
     if (!ctx) return;
     
-    // Preparar datos
     const fechas = historial.map(h => formatDate(h.fecha));
     const presionesSistolica = historial.map(h => {
         if (!h.presion_arterial) return null;
@@ -2811,10 +2780,8 @@ function updateSignosChart(historial) {
     const frecuencias = historial.map(h => h.frecuencia_cardiaca || null);
     const temperaturas = historial.map(h => h.temperatura || null);
     
-    // Destruir gráfico anterior si existe
     if (signosChart) signosChart.destroy();
     
-    // Configurar datasets según lo seleccionado
     let datasets = [];
     if (currentSignoVisible === 'presion') {
         datasets = [{
@@ -2847,25 +2814,16 @@ function updateSignosChart(historial) {
     
     signosChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: fechas,
-            datasets: datasets
-        },
+        data: { labels: fechas, datasets: datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                y: { beginAtZero: false, grid: { color: '#e2e8f0' } }
-            }
+            plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+            scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' } } }
         }
     });
 }
 
-// Cambiar el signo vital mostrado en la gráfica
 function toggleSignoVital(tipo) {
     currentSignoVisible = tipo;
     const pacienteId = document.getElementById('historiaPacienteSelect')?.value;
@@ -2883,14 +2841,12 @@ async function cargarHistoriaPacienteParaGrafica(pacienteId) {
     }
 }
 
-// Exportar historial a CSV
 function exportarHistorialCSV() {
     const table = document.getElementById('historialTable');
     if (!table) return;
     
     const rows = table.querySelectorAll('tr');
     const csvData = [];
-    
     rows.forEach(row => {
         const cols = row.querySelectorAll('th, td');
         const rowData = Array.from(cols).map(col => col.textContent.trim());
@@ -2904,210 +2860,163 @@ function exportarHistorialCSV() {
     a.download = `historial_${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    
     showToast('Historial exportado a CSV');
 }
 
-// Modificar cargarPacientesSelects para incluir historiaPacienteSelect
-async function cargarPacientesSelects() {
+function openHistoriaModal() {
+    cargarPacientesSelects();
+    ['historiaPA','historiaFC','historiaTemp','historiaSat','historiaSintomas','historiaDiagnostico','historiaTratamiento'].forEach(f => {
+        const el = document.getElementById(f);
+        if (el) el.value = '';
+    });
+    document.getElementById('historiaModal').classList.add('active');
+}
+
+function closeHistoriaModal() { 
+    document.getElementById('historiaModal').classList.remove('active'); 
+}
+
+async function saveHistoria() {
+    const pacienteId = document.getElementById('historiaPaciente')?.value;
+    if (!pacienteId) { showToast('Seleccione un paciente', 'error'); return; }
+    const payload = {
+        presion_arterial: document.getElementById('historiaPA')?.value || '',
+        frecuencia_cardiaca: document.getElementById('historiaFC')?.value || null,
+        temperatura: document.getElementById('historiaTemp')?.value || null,
+        sintomas: document.getElementById('historiaSintomas')?.value || '',
+        diagnostico: document.getElementById('historiaDiagnostico')?.value || '',
+        tratamiento: document.getElementById('historiaTratamiento')?.value || ''
+    };
+    try {
+        await apiFetch(`/api/pacientes/${pacienteId}/historia`, { method: 'POST', body: JSON.stringify(payload) });
+        showToast('Nota clínica guardada');
+        closeHistoriaModal();
+        const select = document.getElementById('historiaPacienteSelect');
+        if (select && select.value == pacienteId) loadHistoriaPaciente();
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// MEDICAMENTOS
+// ============================================================
+async function verMedicamentosPaciente(id) {
+    await cargarPacientesSelects();
+    const select = document.getElementById('verMedicamentosPaciente');
+    if (select) { select.value = id; await cargarMedicamentosPaciente(); }
+    showPage('medicamentos', document.querySelector('.nav-item[onclick*="medicamentos"]'));
+}
+
+async function mostrarMedicamentosRapidos(pacienteId, event) {
+    event.stopPropagation();
+    const expandDiv = document.getElementById(`expand-content-${pacienteId}`);
+    const innerDiv = document.getElementById(`expand-inner-${pacienteId}`);
+    if (!expandDiv || !innerDiv) return;
+    if (expandDiv.classList.contains('show') && expandDiv.dataset.currentType === 'medicamentos') {
+        expandDiv.classList.remove('show');
+        return;
+    }
+    expandDiv.dataset.currentType = 'medicamentos';
+    innerDiv.innerHTML = 'Cargando medicamentos...';
+    expandDiv.classList.add('show');
+    try {
+        const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
+        if (medicamentosPaciente.length === 0) {
+            innerDiv.innerHTML = '<p class="empty-state"><i class="fas fa-pills"></i> Sin medicamentos asignados</p>';
+        } else {
+            innerDiv.innerHTML = `
+                <h4><i class="fas fa-pills"></i> Medicamentos actuales</h4>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    ${medicamentosPaciente.map(m => `<div class="med-item" style="margin:0;"><div class="med-time"><i class="fas fa-clock"></i> ${m.horario?m.horario.join(', '):'Horario flexible'}</div><div class="med-name">${m.medicamento_nombre}</div><div class="med-dose">${m.dosis}</div></div>`).join('')}
+                </div>
+                <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="verMedicamentosPaciente(${pacienteId}); event.stopPropagation();">Ver medicamentos completo</button>
+            `;
+        }
+    } catch (err) {
+        innerDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+    }
+}
+
+async function cargarMedicamentosSelect() {
+    try {
+        let medicamentosApi = [];
+        try { medicamentosApi = await apiFetch('/api/medicamentos'); } catch(e) {}
+        medicamentosLista = medicamentosApi.length > 0 ? medicamentosApi : medicamentosGeriatria;
+        const select = document.getElementById('asignarMedicamento');
+        if (select) select.innerHTML = '<option value="">-- Seleccione --</option>' + medicamentosLista.map((m, idx) => `<option value="${idx+1}">${m.nombre} - ${m.presentacion||''}</option>`).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function cargarMedicamentosPorPacienteSelect() {
     try {
         const pacientesList = await apiFetch('/api/patients');
-        const options = '<option value="">-- Seleccione un paciente --</option>' + 
-            pacientesList.map(p => `<option value="${p.id}">${escapeHtml(p.name)} - Cama ${p.cama_asignada || 'N/A'}</option>`).join('');
-        
-        ['historiaPacienteSelect', 'historiaPaciente', 'asignarPaciente', 'verMedicamentosPaciente', 'pagosPacienteSelect', 'pagoPaciente'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = options;
-        });
-    } catch(e) { 
-        console.error('Error cargando selects de pacientes:', e); 
-    }
+        const select = document.getElementById('verMedicamentosPaciente');
+        if (select) select.innerHTML = '<option value="">-- Seleccione paciente --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    } catch(e) { console.error(e); }
 }
 
-    function openHistoriaModal() {
-        cargarPacientesSelects();
-        ['historiaPA','historiaFC','historiaTemp','historiaSat','historiaSintomas','historiaDiagnostico','historiaTratamiento'].forEach(f => {
-            const el = document.getElementById(f);
-            if (el) el.value = '';
-        });
-        document.getElementById('historiaModal').classList.add('active');
-    }
-    function closeHistoriaModal() { document.getElementById('historiaModal').classList.remove('active'); }
-
-    async function saveHistoria() {
-        const pacienteId = document.getElementById('historiaPaciente')?.value;
-        if (!pacienteId) { showToast('Seleccione un paciente', 'error'); return; }
-        const payload = {
-            presion_arterial: document.getElementById('historiaPA')?.value || '',
-            frecuencia_cardiaca: document.getElementById('historiaFC')?.value || null,
-            temperatura: document.getElementById('historiaTemp')?.value || null,
-            sintomas: document.getElementById('historiaSintomas')?.value || '',
-            diagnostico: document.getElementById('historiaDiagnostico')?.value || '',
-            tratamiento: document.getElementById('historiaTratamiento')?.value || ''
-        };
-        try {
-            await apiFetch(`/api/pacientes/${pacienteId}/historia`, { method: 'POST', body: JSON.stringify(payload) });
-            showToast('Nota clínica guardada');
-            closeHistoriaModal();
-            const select = document.getElementById('historiaPacienteSelect');
-            if (select && select.value == pacienteId) loadHistoriaPaciente();
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-    async function cargarMedicamentosSelect() {
-        try {
-            let medicamentosApi = [];
-            try { medicamentosApi = await apiFetch('/api/medicamentos'); } catch(e) {}
-            medicamentosLista = medicamentosApi.length > 0 ? medicamentosApi : medicamentosGeriatria;
-            const select = document.getElementById('asignarMedicamento');
-            if (select) select.innerHTML = '<option value="">-- Seleccione --</option>' + medicamentosLista.map((m, idx) => `<option value="${idx+1}">${m.nombre} - ${m.presentacion||''}</option>`).join('');
-        } catch(e) { console.error(e); }
-    }
-
-    async function cargarMedicamentosPorPacienteSelect() {
-        try {
-            const pacientesList = await apiFetch('/api/patients');
-            const select = document.getElementById('verMedicamentosPaciente');
-            if (select) select.innerHTML = '<option value="">-- Seleccione paciente --</option>' + pacientesList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-        } catch(e) { console.error(e); }
-    }
-
-    async function cargarMedicamentosPaciente() {
-        const pacienteId = document.getElementById('verMedicamentosPaciente')?.value;
-        if (!pacienteId) { document.getElementById('medicamentosList').innerHTML = ''; return; }
-        try {
-            const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
-            document.getElementById('medicamentosList').innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">Sin medicamentos asignados</p>' :
-                `<table class="table"><thead><tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${medicamentosPaciente.map(m => `<tr><td>${m.medicamento_nombre}</td><td>${m.dosis}</td><td>${m.horario?m.horario.join(', '):''}</td><td><span class="badge ${m.activo?'badge-success':'badge-danger'}">${m.activo?'Activo':'Inactivo'}</span></td><td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td></tr>`).join('')}</tbody></table>`;
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-    async function asignarMedicamento() {
-        const pacienteId = document.getElementById('asignarPaciente')?.value;
-        const medicamentoIndex = document.getElementById('asignarMedicamento')?.value;
-        const dosis = document.getElementById('asignarDosis')?.value;
-        const horarioStr = document.getElementById('asignarHorario')?.value;
-        if (!pacienteId || !medicamentoIndex) { showToast('Complete todos los campos', 'error'); return; }
-        const medicamento = medicamentosLista[parseInt(medicamentoIndex) - 1];
-        const horario = horarioStr ? horarioStr.split(',').map(h => h.trim()) : [];
-        try {
-            await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`, { method: 'POST', body: JSON.stringify({ medicamento_id: parseInt(medicamentoIndex), nombre: medicamento.nombre, presentacion: medicamento.presentacion, dosis: dosis || medicamento.dosis, horario }) });
-            showToast('Medicamento asignado');
-            document.getElementById('asignarDosis').value = '';
-            document.getElementById('asignarHorario').value = '';
-            cargarMedicamentosPaciente();
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-    async function registrarAplicacion(pacienteMedicamentoId) {
-        const aplicado = confirm('¿Se aplicó el medicamento?');
-        try {
-            await apiFetch('/api/medicamentos/aplicar', { method: 'POST', body: JSON.stringify({ paciente_medicamento_id: pacienteMedicamentoId, aplicado }) });
-            showToast('Aplicación registrada');
-            cargarMedicamentosPaciente();
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-    function openMedicamentoModal() {
-        ['medicamentoNombre','medicamentoPresentacion','medicamentoDosis'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
-        document.getElementById('medicamentoModal').classList.add('active');
-    }
-    function closeMedicamentoModal() { document.getElementById('medicamentoModal').classList.remove('active'); }
-
-    async function saveMedicamento() {
-        const nombre = document.getElementById('medicamentoNombre')?.value;
-        if (!nombre) { showToast('El nombre del medicamento es requerido', 'error'); return; }
-        try {
-            await apiFetch('/api/medicamentos', { method: 'POST', body: JSON.stringify({ nombre, presentacion: document.getElementById('medicamentoPresentacion')?.value, dosis_habitual: document.getElementById('medicamentoDosis')?.value }) });
-            showToast('Medicamento registrado correctamente');
-            closeMedicamentoModal();
-            await cargarMedicamentosSelect();
-        } catch (err) { showToast(err.message, 'error'); }
-    }
-
-    async function cargarPagosPaciente() {
-        const pacienteId = document.getElementById('pagosPacienteSelect')?.value;
-        if (!pacienteId) { document.getElementById('adeudoInfo').innerHTML = ''; document.getElementById('pagosList').innerHTML = ''; return; }
-        try {
-            const adeudo = await apiFetch(`/api/pacientes/${pacienteId}/adeudo`);
-            const pagos = await apiFetch(`/api/pacientes/${pacienteId}/pagos`);
-            document.getElementById('adeudoInfo').innerHTML = `<div class="card"><h3>Adeudo Actual: ${formatCurrency(adeudo.adeudo)}</h3><p>Mensualidad: ${formatCurrency(adeudo.precio_mensual||0)}</p></div>`;
-            document.getElementById('pagosList').innerHTML = pagos.length === 0 ? '<p>Sin pagos registrados</p>' :
-                `<table class="table"><thead><tr><th>Fecha</th><th>Monto</th><th>Método</th><th>Recibo</th></tr></thead><tbody>${pagos.map(p => `<tr><td>${formatDate(p.fecha_pago)}</td><td>${formatCurrency(p.monto)}</td><td>${p.metodo_pago}</td><td>-</td></tr>`).join('')}</tbody></table>`;
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-    function openPagoModal() {
-    cargarPacientesSelects();
-    document.getElementById('pagoMonto').value = '';
-    document.getElementById('pagoMetodo').value = 'efectivo';
-    document.getElementById('pagoModal').classList.add('active');
-}
-    function closePagoModal() { document.getElementById('pagoModal').classList.remove('active'); }
-
-    async function registrarPago() {
-        const pacienteId = document.getElementById('pagoPaciente')?.value;
-        const monto = document.getElementById('pagoMonto')?.value;
-        const metodo = document.getElementById('pagoMetodo')?.value;
-        if (!pacienteId || !monto) { showToast('Complete los campos', 'error'); return; }
-        try {
-            const response = await fetch(`${API_URL}/api/pacientes/${pacienteId}/pagos`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ monto: parseFloat(monto), metodo_pago: metodo })
-            });
-            if (!response.ok) throw new Error(await response.text());
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `recibo_${Date.now()}.pdf`; a.click();
-            window.URL.revokeObjectURL(url);
-            showToast('Pago registrado y recibo generado');
-            closePagoModal();
-            cargarPagosPaciente();
-        } catch(err) { showToast(err.message, 'error'); }
-    }
-
-   async function loadEmpleados() {
+async function cargarMedicamentosPaciente() {
+    const pacienteId = document.getElementById('verMedicamentosPaciente')?.value;
+    if (!pacienteId) { document.getElementById('medicamentosList').innerHTML = ''; return; }
     try {
-        empleados = await apiFetch('/api/nomina/empleados');
-        const tbody = document.querySelector('#empleadosTable tbody');
-        if (tbody) {
-            tbody.innerHTML = empleados.map(e => `
-                <tr>
-                    <td><strong>${e.nombre}</strong></td>
-                    <td>${e.puesto || '-'}</td>
-                    <td>${formatCurrency(e.salario_base)}</td>
-                    <td>
-                        <button class="btn btn-success btn-sm" onclick="generarNominaIndividual(${e.id})" style="margin-right: 8px;">
-                            <i class="fas fa-file-invoice-dollar"></i> Gen. Nómina
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-    } catch(e) { 
-        console.error('Error cargando empleados:', e);
-        showToast('Error al cargar empleados', 'error');
-    }
+        const medicamentosPaciente = await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`);
+        document.getElementById('medicamentosList').innerHTML = medicamentosPaciente.length === 0 ? '<p class="empty-state">Sin medicamentos asignados</p>' :
+            `<table class="table"><thead><tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${medicamentosPaciente.map(m => `<tr><td>${m.medicamento_nombre}</td><td>${m.dosis}</td><td>${m.horario?m.horario.join(', '):''}</td><td><span class="badge ${m.activo?'badge-success':'badge-danger'}">${m.activo?'Activo':'Inactivo'}</span></td><td><button class="btn btn-warning btn-sm" onclick="registrarAplicacion(${m.id})">Registrar Aplicación</button></td></tr>`).join('')}</tbody><table>`;
+    } catch(err) { showToast(err.message, 'error'); }
 }
-    // ============================================================
-// FUNCIONES PARA PAGOS - ESTILO LISTA DE CHAT
+
+async function asignarMedicamento() {
+    const pacienteId = document.getElementById('asignarPaciente')?.value;
+    const medicamentoIndex = document.getElementById('asignarMedicamento')?.value;
+    const dosis = document.getElementById('asignarDosis')?.value;
+    const horarioStr = document.getElementById('asignarHorario')?.value;
+    if (!pacienteId || !medicamentoIndex) { showToast('Complete todos los campos', 'error'); return; }
+    const medicamento = medicamentosLista[parseInt(medicamentoIndex) - 1];
+    const horario = horarioStr ? horarioStr.split(',').map(h => h.trim()) : [];
+    try {
+        await apiFetch(`/api/pacientes/${pacienteId}/medicamentos`, { method: 'POST', body: JSON.stringify({ medicamento_id: parseInt(medicamentoIndex), nombre: medicamento.nombre, presentacion: medicamento.presentacion, dosis: dosis || medicamento.dosis, horario }) });
+        showToast('Medicamento asignado');
+        document.getElementById('asignarDosis').value = '';
+        document.getElementById('asignarHorario').value = '';
+        cargarMedicamentosPaciente();
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function registrarAplicacion(pacienteMedicamentoId) {
+    const aplicado = confirm('¿Se aplicó el medicamento?');
+    try {
+        await apiFetch('/api/medicamentos/aplicar', { method: 'POST', body: JSON.stringify({ paciente_medicamento_id: pacienteMedicamentoId, aplicado }) });
+        showToast('Aplicación registrada');
+        cargarMedicamentosPaciente();
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+function openMedicamentoModal() {
+    ['medicamentoNombre','medicamentoPresentacion','medicamentoDosis'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
+    document.getElementById('medicamentoModal').classList.add('active');
+}
+
+function closeMedicamentoModal() { 
+    document.getElementById('medicamentoModal').classList.remove('active'); 
+}
+
+async function saveMedicamento() {
+    const nombre = document.getElementById('medicamentoNombre')?.value;
+    if (!nombre) { showToast('El nombre del medicamento es requerido', 'error'); return; }
+    try {
+        await apiFetch('/api/medicamentos', { method: 'POST', body: JSON.stringify({ nombre, presentacion: document.getElementById('medicamentoPresentacion')?.value, dosis_habitual: document.getElementById('medicamentoDosis')?.value }) });
+        showToast('Medicamento registrado correctamente');
+        closeMedicamentoModal();
+        await cargarMedicamentosSelect();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
 // ============================================================
-
-let todosLosPacientes = [];
-let pacienteSeleccionadoId = null;
-let pacienteSeleccionadoAdeudo = 0;
-
-// Cargar lista completa de pacientes
+// PAGOS Y ADEUDOS - VERSIÓN CORREGIDA
+// ============================================================
 async function cargarListaPacientesAdeudos() {
     try {
         todosLosPacientes = await apiFetch('/api/patients');
         
-        // Calcular adeudo para cada paciente
         for (const p of todosLosPacientes) {
             try {
                 const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
@@ -3120,14 +3029,10 @@ async function cargarListaPacientesAdeudos() {
             }
         }
         
-        // Actualizar KPIs
         await actualizarKPIsPagos();
         
-        // Renderizar tabla de adeudos
         const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
         renderTablaAdeudos(pacientesConAdeudo);
-        
-        // Renderizar lista estilo chat
         renderListaPacientes(todosLosPacientes);
         
     } catch(e) {
@@ -3136,12 +3041,10 @@ async function cargarListaPacientesAdeudos() {
     }
 }
 
-// Actualizar KPIs de pagos
 async function actualizarKPIsPagos() {
     try {
         const totalAdeudos = todosLosPacientes.reduce((sum, p) => sum + (p.adeudo || 0), 0);
         
-        // Calcular ingresos del mes actual
         const fechaActual = new Date();
         const mesActual = fechaActual.getMonth() + 1;
         const añoActual = fechaActual.getFullYear();
@@ -3159,7 +3062,6 @@ async function actualizarKPIsPagos() {
             } catch(e) {}
         }
         
-        // Calcular tasa de cobranza
         const montoEsperado = todosLosPacientes.reduce((sum, p) => sum + (p.precio_mensual || 0), 0);
         const tasaCobranza = montoEsperado > 0 ? (ingresosMes / montoEsperado) * 100 : 0;
         
@@ -3177,7 +3079,6 @@ async function actualizarKPIsPagos() {
     }
 }
 
-// Renderizar tabla de adeudos
 function renderTablaAdeudos(pacientesConAdeudo) {
     const tbody = document.getElementById('adeudosTableBody');
     if (!tbody) return;
@@ -3196,25 +3097,21 @@ function renderTablaAdeudos(pacientesConAdeudo) {
         
         return `
             <tr>
-                <td>
-                    <strong>${escapeHtml(p.name)}</strong>
-                    <br><small style="color:#666;">${p.cama_asignada ? 'Cama ' + p.cama_asignada : 'Sin cama'}</small>
-                </td
-                <td>${planNombre}</td
-                <td>${formatCurrency(p.precio_mensual)}</td
-                <td><span class="${adeudoClass}">${formatCurrency(p.adeudo)}</span></td
-                <td>${p.meses_atraso} ${p.meses_atraso === 1 ? 'mes' : 'meses'}</td
+                <td><strong>${escapeHtml(p.name)}</strong><br><small style="color:#666;">${p.cama_asignada ? 'Cama ' + p.cama_asignada : 'Sin cama'}</small></td>
+                <td>${planNombre}</td>
+                <td>${formatCurrency(p.precio_mensual)}</td>
+                <td><span class="${adeudoClass}">${formatCurrency(p.adeudo)}</span></td>
+                <td>${p.meses_atraso} ${p.meses_atraso === 1 ? 'mes' : 'meses'}</td>
                 <td>
                     <button class="btn-pagar-adeudo" onclick="abrirPagoRapido(${p.id}, ${p.adeudo})">
                         <i class="fas fa-money-bill"></i> Pagar
                     </button>
-                 </td
+                </td>
             </tr>
         `;
     }).join('');
 }
 
-// Filtrar tabla de adeudos
 function filtrarTablaAdeudos() {
     const searchTerm = document.getElementById('searchPacienteAdeudo')?.value.toLowerCase() || '';
     const pacientesConAdeudo = todosLosPacientes.filter(p => 
@@ -3225,7 +3122,6 @@ function filtrarTablaAdeudos() {
     renderTablaAdeudos(pacientesConAdeudo);
 }
 
-// Renderizar lista de pacientes estilo chat
 function renderListaPacientes(pacientes) {
     const container = document.getElementById('pacientesListaContainer');
     if (!container) return;
@@ -3262,7 +3158,6 @@ function renderListaPacientes(pacientes) {
     }).join('');
 }
 
-// Filtrar lista de pacientes
 function filtrarListaPacientes() {
     const searchTerm = document.getElementById('searchPacienteLista')?.value.toLowerCase() || '';
     const items = document.querySelectorAll('#pacientesListaContainer .paciente-lista-item');
@@ -3272,24 +3167,18 @@ function filtrarListaPacientes() {
     });
 }
 
-// Seleccionar paciente de la lista
 async function seleccionarPacienteLista(pacienteId) {
-    // Remover selección anterior
     document.querySelectorAll('.paciente-lista-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-    // Marcar el seleccionado
     const selected = document.querySelector(`.paciente-lista-item[data-id="${pacienteId}"]`);
     if (selected) selected.classList.add('selected');
     
     pacienteSeleccionadoId = pacienteId;
-    
-    // Cargar historial de pagos
     await cargarHistorialPagosPorId(pacienteId);
 }
 
-// Cargar historial de pagos de un paciente específico
 async function cargarHistorialPagosPorId(pacienteId) {
     showLoading(true);
     try {
@@ -3363,7 +3252,6 @@ async function cargarHistorialPagosPorId(pacienteId) {
     }
 }
 
-// Abrir pago rápido
 function abrirPagoRapido(pacienteId, montoSugerido) {
     const select = document.getElementById('pagoPaciente');
     if (select) select.value = pacienteId;
@@ -3374,14 +3262,12 @@ function abrirPagoRapido(pacienteId, montoSugerido) {
     document.getElementById('pagoModal').classList.add('active');
 }
 
-// Abrir pago desde el historial
 function abrirPagoDesdeHistorial() {
     if (pacienteSeleccionadoId) {
         abrirPagoRapido(pacienteSeleccionadoId, pacienteSeleccionadoAdeudo);
     }
 }
 
-// Exportar reporte de pagos a CSV
 function exportarReportePagos() {
     const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
     const csvData = [
@@ -3408,9 +3294,18 @@ function exportarReportePagos() {
     showToast('Reporte exportado');
 }
 
-// Modificar el registrarPago original para que recargue los datos
-const registrarPagoOriginal = registrarPago;
-registrarPago = async function() {
+function openPagoModal() {
+    cargarPacientesSelects();
+    document.getElementById('pagoMonto').value = '';
+    document.getElementById('pagoMetodo').value = 'efectivo';
+    document.getElementById('pagoModal').classList.add('active');
+}
+
+function closePagoModal() { 
+    document.getElementById('pagoModal').classList.remove('active'); 
+}
+
+async function registrarPago() {
     const pacienteId = document.getElementById('pagoPaciente')?.value;
     const monto = document.getElementById('pagoMonto')?.value;
     const metodo = document.getElementById('pagoMetodo')?.value;
@@ -3440,10 +3335,8 @@ registrarPago = async function() {
         showToast('Pago registrado y recibo generado');
         closePagoModal();
         
-        // Recargar todos los datos
         await cargarListaPacientesAdeudos();
         
-        // Si había un paciente seleccionado, recargar su historial
         if (pacienteSeleccionadoId) {
             await cargarHistorialPagosPorId(pacienteSeleccionadoId);
         }
@@ -3451,486 +3344,66 @@ registrarPago = async function() {
     } catch(err) { 
         showToast(err.message, 'error'); 
     }
-};
-            
-    // ============================================================
-// NUEVAS FUNCIONES PARA PAGOS (similar a nómina)
+}
+
 // ============================================================
-
-let todosLosPacientes = [];
-
-async function cargarListaPacientesAdeudos() {
-    try {
-        todosLosPacientes = await apiFetch('/api/patients');
-        
-        for (const p of todosLosPacientes) {
-            try {
-                const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
-                p.adeudo = adeudoData.adeudo || 0;
-                p.precio_mensual = adeudoData.precio_mensual || 0;
-                p.meses_atraso = Math.floor(p.adeudo / (p.precio_mensual || 1));
-            } catch(e) {
-                p.adeudo = 0;
-                p.meses_atraso = 0;
-            }
-        }
-        
-        actualizarKPIsPagos();
-        const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
-        renderTablaAdeudos(pacientesConAdeudo);
-        cargarSelectPacientesPagos();
-        
-    } catch(e) {
-        console.error('Error cargando pacientes:', e);
-        showToast('Error al cargar pacientes', 'error');
-    }
-}
-
-function actualizarKPIsPagos() {
-    const totalAdeudos = todosLosPacientes.reduce((sum, p) => sum + (p.adeudo || 0), 0);
-    document.getElementById('totalAdeudos').textContent = formatCurrency(totalAdeudos);
-}
-
-function renderTablaAdeudos(pacientesConAdeudo) {
-    const tbody = document.getElementById('adeudosTableBody');
-    if (!tbody) return;
-    
-    if (pacientesConAdeudo.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay pacientes con adeudos</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = pacientesConAdeudo.map(p => {
-        let adeudoClass = 'adeudo-bajo';
-        if (p.adeudo > p.precio_mensual * 2) adeudoClass = 'adeudo-alto';
-        else if (p.adeudo > p.precio_mensual) adeudoClass = 'adeudo-medio';
-        
-        const planNombre = p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más';
-        
-        return `
-            <tr>
-                <td><strong>${escapeHtml(p.name)}</strong><br><small>${p.cama_asignada ? 'Cama ' + p.cama_asignada : 'Sin cama'}</small></td>
-                <td>${planNombre}</td>
-                <td>${formatCurrency(p.precio_mensual)}</td>
-                <td><span class="${adeudoClass}">${formatCurrency(p.adeudo)}</span></td>
-                <td>${p.meses_atraso} ${p.meses_atraso === 1 ? 'mes' : 'meses'}</td>
-                <td><span class="badge badge-success">Activo</span></td>
-                <td>
-                    <button class="btn-pagar-adeudo" onclick="abrirPagoRapido(${p.id}, ${p.adeudo})">
-                        <i class="fas fa-money-bill"></i> Pagar
-                    </button>
-                    <button class="btn-ver-pagos" onclick="verHistorialPagosPaciente(${p.id})" style="margin-left: 8px;">
-                        <i class="fas fa-history"></i> Ver pagos
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function filtrarTablaAdeudos() {
-    const searchTerm = document.getElementById('searchPacienteAdeudo')?.value.toLowerCase() || '';
-    const pacientesConAdeudo = todosLosPacientes.filter(p => 
-        p.adeudo > 0 && p.name?.toLowerCase().includes(searchTerm)
-    );
-    renderTablaAdeudos(pacientesConAdeudo);
-}
-
-async function cargarSelectPacientesPagos() {
-    try {
-        const pacientes = await apiFetch('/api/patients');
-        const select = document.getElementById('pagosPacienteSelect');
-        if (select) {
-            select.innerHTML = '<option value="">-- Seleccionar paciente --</option>' + 
-                pacientes.map(p => `<option value="${p.id}">${escapeHtml(p.name)} - ${p.cama_asignada || 'Sin cama'}</option>`).join('');
-        }
-    } catch(e) {
-        console.error('Error cargando select:', e);
-    }
-}
-
-async function cargarHistorialPagos() {
-    const pacienteId = document.getElementById('pagosPacienteSelect')?.value;
-    if (!pacienteId) {
-        document.getElementById('historialPagosContainer').innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-receipt"></i>
-                <p>Seleccione un paciente para ver su historial de pagos</p>
-            </div>
-        `;
-        return;
-    }
-    
-    showLoading(true);
-    try {
-        const paciente = await apiFetch(`/api/patients/${pacienteId}`);
-        const pagos = await apiFetch(`/api/pacientes/${pacienteId}/pagos`);
-        const adeudo = await apiFetch(`/api/pacientes/${pacienteId}/adeudo`);
-        
-        const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0);
-        const ultimoPago = pagos.length > 0 ? pagos[0] : null;
-        
-        const container = document.getElementById('historialPagosContainer');
-        container.innerHTML = `
-            <div class="resumen-pagos">
-                <div class="resumen-card">
-                    <div class="label">Total Pagado</div>
-                    <div class="value" style="color: #10b981;">${formatCurrency(totalPagado)}</div>
-                </div>
-                <div class="resumen-card">
-                    <div class="label">Adeudo Actual</div>
-                    <div class="value" style="color: ${adeudo.adeudo > 0 ? '#dc2626' : '#10b981'};">${formatCurrency(adeudo.adeudo)}</div>
-                </div>
-                <div class="resumen-card">
-                    <div class="label">Último Pago</div>
-                    <div class="value" style="font-size: 0.9em;">${ultimoPago ? formatDate(ultimoPago.fecha_pago) : 'Sin pagos'}</div>
-                </div>
-            </div>
-            <h4><i class="fas fa-list"></i> Historial de Pagos</h4>
-            <div class="pagos-timeline">
-                ${pagos.length === 0 ? '<div class="empty-state"><i class="fas fa-receipt"></i><p>No hay pagos registrados</p></div>' : 
-                    pagos.map(p => `
-                        <div class="pago-item">
-                            <div class="pago-info">
-                                <div class="pago-fecha">
-                                    <i class="fas fa-calendar"></i> ${formatDate(p.fecha_pago)}
-                                </div>
-                                <div class="pago-monto">
-                                    ${formatCurrency(p.monto)}
-                                    <span class="pago-metodo">
-                                        <i class="fas fa-${p.metodo_pago === 'efectivo' ? 'money-bill' : p.metodo_pago === 'transferencia' ? 'exchange-alt' : 'credit-card'}"></i>
-                                        ${p.metodo_pago === 'efectivo' ? 'Efectivo' : p.metodo_pago === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
-                                    </span>
-                                </div>
-                            </div>
-                            <button class="btn btn-secondary btn-sm" onclick="descargarRecibo(${p.id})">
-                                <i class="fas fa-download"></i> Recibo
-                            </button>
-                        </div>
-                    `).join('')
-                }
-            </div>
-        `;
-        
-    } catch(e) {
-        showToast('Error cargando historial: ' + e.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-function abrirPagoRapido(pacienteId, montoSugerido) {
-    const select = document.getElementById('pagoPaciente');
-    if (select) select.value = pacienteId;
-    const montoInput = document.getElementById('pagoMonto');
-    if (montoInput && montoSugerido > 0) {
-        montoInput.value = montoSugerido;
-    }
-    document.getElementById('pagoModal').classList.add('active');
-}
-
-async function verHistorialPagosPaciente(pacienteId) {
-    const select = document.getElementById('pagosPacienteSelect');
-    if (select) {
-        select.value = pacienteId;
-        await cargarHistorialPagos();
-        document.getElementById('historialPagosContainer').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-function exportarReportePagos() {
-    const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
-    const csvData = [
-        ['Paciente', 'Cama', 'Plan', 'Mensualidad', 'Adeudo', 'Meses Atraso', 'Teléfono'],
-        ...pacientesConAdeudo.map(p => [
-            p.name,
-            p.cama_asignada || '',
-            p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más',
-            p.precio_mensual || 0,
-            p.adeudo,
-            p.meses_atraso,
-            p.phone || ''
-        ])
-    ];
-    
-    const csvContent = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_adeudos_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Reporte exportado');
-}
-
-async function descargarRecibo(pagoId) {
-    try {
-        const response = await fetch(`${API_URL}/api/pagos/${pagoId}/recibo`);
-        if (!response.ok) throw new Error('Error al generar recibo');
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recibo_${pagoId}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        showToast('Recibo descargado');
-    } catch(e) {
-        showToast('Error al descargar recibo', 'error');
-    }
-}
+// NÓMINA
 // ============================================================
-// MÓDULO DE INVERSIONES
-// ============================================================
-
-let inversionistasChart = null;
-
-// Cargar inversionistas
-// Cargar inversionistas
-async function loadInversionistas() {
+async function loadEmpleados() {
     try {
-        const inversionistas = await apiFetch('/api/inversionistas');
-        console.log('Inversionistas cargados:', inversionistas);
-        
-        const tbody = document.querySelector('#inversionistasTable tbody');
+        empleados = await apiFetch('/api/nomina/empleados');
+        const tbody = document.querySelector('#empleadosTable tbody');
         if (tbody) {
-            if (inversionistas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay inversionistas registrados</td></tr>';
+            tbody.innerHTML = empleados.map(e => `
+                <tr>
+                    <td><strong>${e.nombre}</strong></td>
+                    <td>${e.puesto || '-'}</td>
+                    <td>${formatCurrency(e.salario_base)}</td>
+                    <td>
+                        <button class="btn btn-success btn-sm" onclick="generarNominaIndividual(${e.id})" style="margin-right: 8px;">
+                            <i class="fas fa-file-invoice-dollar"></i> Gen. Nómina
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmpleado(${e.id})">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch(e) { 
+        console.error('Error cargando empleados:', e);
+        showToast('Error al cargar empleados', 'error');
+    }
+}
+
+async function loadNominas() {
+    try {
+        const nominas = await apiFetch('/api/nomina');
+        const tbody = document.querySelector('#nominasTable tbody');
+        if (tbody) {
+            if (nominas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay nóminas generadas</td></tr>';
             } else {
-                tbody.innerHTML = inversionistas.map(inv => {
-                    const pagoMensual = inv.monto_inicial * (inv.porcentaje_comision / 100);
-                    return `
-                        <tr>
-                            <td>
-                                <strong>${escapeHtml(inv.nombre)}</strong>
-                                ${inv.email ? `<br><small style="color:#666;">${escapeHtml(inv.email)}</small>` : ''}
-                            </td>
-                            <td>${formatCurrency(inv.monto_inicial)}</td>
-                            <td>${inv.porcentaje_comision}%</td>
-                            <td>${formatCurrency(pagoMensual)}</td>
-                            <td>${formatCurrency(inv.total_pagado || 0)}</td>
-                            <td>${formatDate(inv.fecha_inversion)}</td>
-                            <td>
-                                <button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})">
-                                    <i class="fas fa-money-bill"></i> Pagar
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                tbody.innerHTML = nominas.map(n => `
+                    <tr>
+                        <td>${formatDate(n.periodo)}</td>
+                        <td><strong>${n.empleado_nombre}</strong><br><small style="color: #666;">${n.empleado_puesto || ''}</small></td>
+                        <td>${formatCurrency(n.total)}</td>
+                        <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td>
+                        <td>
+                            ${!n.pagado ? `<button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})"><i class="fas fa-money-bill"></i> Pagar</button>` : 
+                                          `<button class="btn btn-secondary btn-sm" onclick="verDetalleNomina(${n.id})"><i class="fas fa-eye"></i> Ver</button>`}
+                        </td>
+                    </tr>
+                `).join('');
             }
         }
-        await loadDashboardInversiones();
-    } catch(e) {
-        console.error('Error cargando inversionistas:', e);
-        showToast('Error al cargar inversionistas: ' + e.message, 'error');
+    } catch(e) { 
+        console.error('Error cargando nóminas:', e);
+        showToast('Error al cargar nóminas', 'error');
     }
 }
 
-// Cargar dashboard de inversiones
-async function loadDashboardInversiones() {
-    try {
-        const data = await apiFetch('/api/dashboard-inversiones');
-        
-        document.getElementById('totalInversion').textContent = formatCurrency(data.resumen.inversion_total);
-        document.getElementById('totalPagado').textContent = formatCurrency(data.resumen.pagado_acumulado);
-        document.getElementById('totalPendiente').textContent = formatCurrency(data.resumen.pendiente_por_pagar);
-        document.getElementById('pacientesActuales').textContent = data.resumen.pacientes_actuales;
-        
-        // Actualizar gráfico
-        if (inversionistasChart) inversionistasChart.destroy();
-        const ctx = document.getElementById('pagosInversionistasChart')?.getContext('2d');
-        if (ctx && data.pagos_por_mes.length > 0) {
-            const labels = data.pagos_por_mes.map(p => `${p.mes}/${p.año}`);
-            const values = data.pagos_por_mes.map(p => p.total_pagado);
-            inversionistasChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels.reverse(),
-                    datasets: [{
-                        label: 'Pagos a Inversionistas',
-                        data: values.reverse(),
-                        backgroundColor: '#10b981',
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { callback: v => '$' + v.toLocaleString() }
-                        }
-                    }
-                }
-            });
-        }
-    } catch(e) {
-        console.error('Error cargando dashboard inversiones:', e);
-    }
-}
-
-// Calcular ROI
-async function calcularROI() {
-    showLoading(true);
-    try {
-        const data = await apiFetch('/api/calcular-roi');
-        
-        // Mostrar resumen actual
-        const resumenHtml = `
-            <div class="kpi-grid" style="margin-bottom: 20px;">
-                <div class="kpi-card"><div><h3>Utilidad Mensual</h3><div class="kpi-value ${data.utilidad_mensual >= 0 ? 'success' : 'danger'}">${formatCurrency(data.utilidad_mensual)}</div></div></div>
-                <div class="kpi-card"><div><h3>Ingreso Mensual</h3><div class="kpi-value">${formatCurrency(data.ingreso_mensual)}</div></div></div>
-                <div class="kpi-card"><div><h3>Costo Mensual</h3><div class="kpi-value">${formatCurrency(data.costo_mensual)}</div></div></div>
-            </div>
-        `;
-        
-        // Mostrar proyecciones por inversionista
-        let proyeccionesHtml = '<h4>Proyecciones por Inversionista</h4>';
-        for (const inv of data.inversionistas) {
-            const proyeccionesInv = data.proyecciones.filter(p => p.inversionista_id === inv.id);
-            proyeccionesHtml += `
-                <div class="card" style="margin-top: 15px;">
-                    <h5>${inv.nombre} - Inversión: ${formatCurrency(inv.monto_inicial)}</h5>
-                    <table class="table">
-                        <thead><tr><th>% Mensual</th><th>Pago Mensual</th><th>Meses para retornar</th><th>Retorno Anual</th><th>ROI Anual</th></tr></thead>
-                        <tbody>
-                            ${proyeccionesInv.map(p => `
-                                <tr>
-                                    <td><strong>${p.porcentaje}%</strong></td>
-                                    <td>${formatCurrency(p.pago_mensual)}</td>
-                                    <td>${p.meses_retorno} meses</td>
-                                    <td>${formatCurrency(p.retorno_anual)}</td>
-                                    <td class="${p.roi_anual >= 60 ? 'text-success' : ''}">${p.roi_anual.toFixed(1)}%</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-        
-        document.getElementById('roiProyecciones').innerHTML = resumenHtml + proyeccionesHtml;
-        document.getElementById('roiCard').style.display = 'block';
-        
-        showToast('Cálculo de ROI completado');
-    } catch(e) {
-        showToast('Error al calcular ROI: ' + e.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Simular ROI
-function simularROI() {
-    const monto = parseFloat(document.getElementById('simMonto').value);
-    const porcentaje = parseFloat(document.getElementById('simPorcentaje').value);
-    
-    if (!monto || !porcentaje) {
-        showToast('Ingrese monto y porcentaje', 'error');
-        return;
-    }
-    
-    const pagoMensual = monto * (porcentaje / 100);
-    const mesesRetorno = Math.ceil(monto / pagoMensual);
-    const roiAnual = (pagoMensual * 12 / monto) * 100;
-    
-    document.getElementById('simPagoMensual').textContent = formatCurrency(pagoMensual);
-    document.getElementById('simMesesRetorno').textContent = mesesRetorno;
-    document.getElementById('simROIAnual').textContent = roiAnual.toFixed(1) + '%';
-    document.getElementById('simulacionResultado').style.display = 'block';
-}
-
-// Modal functions
-function openInversionistaModal(id = null) {
-    document.getElementById('inversionistaId').value = '';
-    document.getElementById('invNombre').value = '';
-    document.getElementById('invEmail').value = '';
-    document.getElementById('invTelefono').value = '';
-    document.getElementById('invMonto').value = '';
-    document.getElementById('invComision').value = '5';
-    document.getElementById('invFecha').value = new Date().toISOString().split('T')[0];
-    
-    if (id) {
-        // Cargar datos para editar
-        fetch(`/api/inversionistas/${id}`)
-            .then(r => r.json())
-            .then(inv => {
-                document.getElementById('inversionistaId').value = inv.id;
-                document.getElementById('invNombre').value = inv.nombre;
-                document.getElementById('invEmail').value = inv.email || '';
-                document.getElementById('invTelefono').value = inv.telefono || '';
-                document.getElementById('invMonto').value = inv.monto_inicial;
-                document.getElementById('invComision').value = inv.porcentaje_comision;
-                document.getElementById('invFecha').value = inv.fecha_inversion?.split('T')[0] || '';
-            });
-    }
-    
-    document.getElementById('inversionistaModal').classList.add('active');
-}
-
-function closeInversionistaModal() {
-    document.getElementById('inversionistaModal').classList.remove('active');
-}
-
-async function saveInversionista() {
-    const id = document.getElementById('inversionistaId').value;
-    const payload = {
-        nombre: document.getElementById('invNombre').value,
-        email: document.getElementById('invEmail').value,
-        telefono: document.getElementById('invTelefono').value,
-        monto_inicial: parseFloat(document.getElementById('invMonto').value),
-        porcentaje_comision: parseFloat(document.getElementById('invComision').value),
-        fecha_inversion: document.getElementById('invFecha').value
-    };
-    
-    try {
-        if (id) {
-            await apiFetch(`/api/inversionistas/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-        } else {
-            await apiFetch('/api/inversionistas', { method: 'POST', body: JSON.stringify(payload) });
-        }
-        showToast('Inversionista guardado');
-        closeInversionistaModal();
-        loadInversionistas();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-
-function abrirPagoInversionista(inversionistaId) {
-    document.getElementById('pagoInvId').value = inversionistaId;
-    document.getElementById('pagoInvMonto').value = '';
-    document.getElementById('pagoInvMes').value = new Date().getMonth() + 1;
-    document.getElementById('pagoInvAño').value = new Date().getFullYear();
-    document.getElementById('pagoInversionistaModal').classList.add('active');
-}
-
-function closePagoInversionistaModal() {
-    document.getElementById('pagoInversionistaModal').classList.remove('active');
-}
-
-async function registrarPagoInversionista() {
-    const inversionistaId = document.getElementById('pagoInvId').value;
-    const payload = {
-        monto: parseFloat(document.getElementById('pagoInvMonto').value),
-        mes: parseInt(document.getElementById('pagoInvMes').value),
-        año: parseInt(document.getElementById('pagoInvAño').value),
-        metodo_pago: document.getElementById('pagoInvMetodo').value
-    };
-    
-    try {
-        await apiFetch(`/api/inversionistas/${inversionistaId}/pagos`, { method: 'POST', body: JSON.stringify(payload) });
-        showToast('Pago registrado');
-        closePagoInversionistaModal();
-        loadInversionistas();
-    } catch(e) {
-        showToast(e.message, 'error');
-    }
-}
-// Nueva función: Generar nómina para un empleado específico
 async function generarNominaIndividual(empleadoId) {
     try {
         const empleados = await apiFetch('/api/nomina/empleados');
@@ -3970,78 +3443,7 @@ async function generarNominaIndividual(empleadoId) {
     }
 }
 
-    async function loadNominas() {
-    try {
-        const nominas = await apiFetch('/api/nomina');
-        const tbody = document.querySelector('#nominasTable tbody');
-        if (tbody) {
-            if (nominas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay nóminas generadas</td></tr>';
-            } else {
-                tbody.innerHTML = nominas.map(n => `
-                    <tr>
-                        <td>${formatDate(n.periodo)}</td>
-                        <td><strong>${n.empleado_nombre}</strong><br><small style="color: #666;">${n.empleado_puesto || ''}</small></td>
-                        <td>${formatCurrency(n.total)}</td>
-                        <td><span class="badge ${n.pagado ? 'badge-success' : 'badge-warning'}">${n.pagado ? 'Pagado' : 'Pendiente'}</span></td>
-                        <td>
-                            ${!n.pagado ? `<button class="btn btn-primary btn-sm" onclick="pagarNomina(${n.id})"><i class="fas fa-money-bill"></i> Pagar</button>` : 
-                                          `<button class="btn btn-secondary btn-sm" onclick="verDetalleNomina(${n.id})"><i class="fas fa-eye"></i> Ver</button>`}
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        }
-    } catch(e) { 
-        console.error('Error cargando nóminas:', e);
-        showToast('Error al cargar nóminas', 'error');
-    }
-}
-
-// Función para ver detalle de nómina
-async function verDetalleNomina(id) {
-    try {
-        const nominas = await apiFetch('/api/nomina');
-        const nomina = nominas.find(n => n.id === id);
-        if (nomina) {
-            alert(`Detalle de Nómina\n\nEmpleado: ${nomina.empleado_nombre}\nPeríodo: ${formatDate(nomina.periodo)}\nTotal: ${formatCurrency(nomina.total)}\nEstado: ${nomina.pagado ? 'Pagado' : 'Pendiente'}\nFecha de pago: ${nomina.fecha_pago ? formatDate(nomina.fecha_pago) : 'No pagado'}`);
-        }
-    } catch(e) {
-        showToast('Error al cargar detalle', 'error');
-    }
-}
-
-    async function deleteEmpleado(id) {
-        if (!confirm('¿Eliminar este empleado?')) return;
-        try { await apiFetch(`/api/nomina/empleados/${id}`, { method: 'DELETE' }); showToast('Empleado eliminado'); loadEmpleados(); }
-        catch(err) { showToast(err.message, 'error'); }
-    }
-
-    async function pagarNomina(id) {
-        try { await apiFetch(`/api/nomina/${id}/pagar`, { method: 'PUT' }); showToast('Nómina marcada como pagada'); loadNominas(); }
-        catch(err) { showToast(err.message, 'error'); }
-    }
-
-    function openEmpleadoModal() {
-        ['empleadoNombre','empleadoPuesto','empleadoSalario','empleadoHorario'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
-        document.getElementById('empleadoModal').classList.add('active');
-    }
-    function closeEmpleadoModal() { document.getElementById('empleadoModal').classList.remove('active'); }
-
-    async function saveEmpleado() {
-        const payload = {
-            nombre: document.getElementById('empleadoNombre')?.value || '',
-            puesto: document.getElementById('empleadoPuesto')?.value || '',
-            salario_base: parseFloat(document.getElementById('empleadoSalario')?.value || 0),
-            horario: document.getElementById('empleadoHorario')?.value ? JSON.parse(document.getElementById('empleadoHorario').value) : null
-        };
-        try { await apiFetch('/api/nomina/empleados', { method: 'POST', body: JSON.stringify(payload) }); showToast('Empleado registrado'); closeEmpleadoModal(); loadEmpleados(); }
-        catch(err) { showToast(err.message, 'error'); }
-    }
-
-    // Función mejorada para generar nómina
 async function generarNomina() {
-    // Primero, cargar empleados disponibles
     try {
         const empleados = await apiFetch('/api/nomina/empleados');
         
@@ -4050,12 +3452,10 @@ async function generarNomina() {
             return;
         }
         
-        // Crear un modal dinámico para seleccionar empleado
         const empleadosList = empleados.map(emp => 
             `<option value="${emp.id}">${emp.nombre} - ${emp.puesto} ($${emp.salario_base?.toLocaleString() || 0})</option>`
         ).join('');
         
-        // Mostrar prompt personalizado usando SweetAlert o confirm nativo mejorado
         const empleadoId = await new Promise((resolve) => {
             const selectHtml = `
                 <div style="margin-bottom: 15px;">
@@ -4071,7 +3471,6 @@ async function generarNomina() {
                 </div>
             `;
             
-            // Usar un modal simple
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -4106,19 +3505,16 @@ async function generarNomina() {
         
         if (!empleadoId) return;
         
-        // Encontrar el empleado seleccionado
         const empleadoSeleccionado = empleados.find(e => e.id == empleadoId.empleadoId);
         if (!empleadoSeleccionado) {
             showToast('Empleado no encontrado', 'error');
             return;
         }
         
-        // Confirmar el monto
         const confirmar = confirm(`Generar nómina para:\n${empleadoSeleccionado.nombre}\nPuesto: ${empleadoSeleccionado.puesto}\nSalario: $${empleadoSeleccionado.salario_base?.toLocaleString()}\nPeríodo: ${empleadoId.periodo}\n\n¿Continuar?`);
         
         if (!confirmar) return;
         
-        // Preparar datos para la API
         const nominaData = [{
             id: empleadoSeleccionado.id,
             total: empleadoSeleccionado.salario_base || 0
@@ -4129,12 +3525,12 @@ async function generarNomina() {
             await apiFetch('/api/nomina/generar', { 
                 method: 'POST', 
                 body: JSON.stringify({ 
-                    periodo: empleadoId.periodo + '-01', // Primer día del mes
+                    periodo: empleadoId.periodo + '-01',
                     empleados_nomina: nominaData 
                 }) 
             });
             showToast(`Nómina generada para ${empleadoSeleccionado.nombre}`);
-            loadNominas(); // Recargar la lista
+            loadNominas();
         } catch(err) {
             showToast(err.message, 'error');
         } finally {
@@ -4145,91 +3541,383 @@ async function generarNomina() {
     }
 }
 
-    async function loadServicios() {
-        try {
-            const servicios = await apiFetch('/api/servicios');
-            const tbody = document.querySelector('#serviciosTable tbody');
-            if (tbody) tbody.innerHTML = servicios.map(s => `<tr><td>${s.nombre}</td><td>${s.proveedor||'-'}</td><td>${formatCurrency(s.monto)}</td><td>${formatDate(s.fecha_vencimiento)}</td><td><span class="badge ${s.pagado?'badge-success':'badge-danger'}">${s.pagado?'Pagado':'Pendiente'}</span></td><td><button class="btn btn-success btn-sm" onclick="marcarServicioPagado(${s.id})">Marcar Pagado</button></td></tr>`).join('');
-        } catch(e) { console.error(e); }
+async function verDetalleNomina(id) {
+    try {
+        const nominas = await apiFetch('/api/nomina');
+        const nomina = nominas.find(n => n.id === id);
+        if (nomina) {
+            alert(`Detalle de Nómina\n\nEmpleado: ${nomina.empleado_nombre}\nPeríodo: ${formatDate(nomina.periodo)}\nTotal: ${formatCurrency(nomina.total)}\nEstado: ${nomina.pagado ? 'Pagado' : 'Pendiente'}\nFecha de pago: ${nomina.fecha_pago ? formatDate(nomina.fecha_pago) : 'No pagado'}`);
+        }
+    } catch(e) {
+        showToast('Error al cargar detalle', 'error');
     }
+}
 
-    function openServicioModal() {
-        ['servicioNombre','servicioProveedor','servicioMonto','servicioVencimiento'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
-        document.getElementById('servicioModal').classList.add('active');
+async function deleteEmpleado(id) {
+    if (!confirm('¿Eliminar este empleado?')) return;
+    try { 
+        await apiFetch(`/api/nomina/empleados/${id}`, { method: 'DELETE' }); 
+        showToast('Empleado eliminado'); 
+        loadEmpleados(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
     }
-    function closeServicioModal() { document.getElementById('servicioModal').classList.remove('active'); }
+}
 
-    async function saveServicio() {
-        const payload = { nombre: document.getElementById('servicioNombre')?.value||'', proveedor: document.getElementById('servicioProveedor')?.value||'', monto: parseFloat(document.getElementById('servicioMonto')?.value||0), fecha_vencimiento: document.getElementById('servicioVencimiento')?.value||null };
-        try { await apiFetch('/api/servicios', { method: 'POST', body: JSON.stringify(payload) }); showToast('Servicio registrado'); closeServicioModal(); loadServicios(); }
-        catch(err) { showToast(err.message, 'error'); }
+async function pagarNomina(id) {
+    try { 
+        await apiFetch(`/api/nomina/${id}/pagar`, { method: 'PUT' }); 
+        showToast('Nómina marcada como pagada'); 
+        loadNominas(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
     }
+}
 
-    async function marcarServicioPagado(id) {
-        try { await apiFetch(`/api/servicios/${id}/pagar`, { method: 'PUT' }); showToast('Servicio marcado como pagado'); loadServicios(); }
-        catch(err) { showToast(err.message, 'error'); }
+function openEmpleadoModal() {
+    ['empleadoNombre','empleadoPuesto','empleadoSalario','empleadoHorario'].forEach(f => { 
+        const el = document.getElementById(f); 
+        if (el) el.value = ''; 
+    });
+    document.getElementById('empleadoModal').classList.add('active');
+}
+
+function closeEmpleadoModal() { 
+    document.getElementById('empleadoModal').classList.remove('active'); 
+}
+
+async function saveEmpleado() {
+    const payload = {
+        nombre: document.getElementById('empleadoNombre')?.value || '',
+        puesto: document.getElementById('empleadoPuesto')?.value || '',
+        salario_base: parseFloat(document.getElementById('empleadoSalario')?.value || 0),
+        horario: document.getElementById('empleadoHorario')?.value ? JSON.parse(document.getElementById('empleadoHorario').value) : null
+    };
+    try { 
+        await apiFetch('/api/nomina/empleados', { method: 'POST', body: JSON.stringify(payload) }); 
+        showToast('Empleado registrado'); 
+        closeEmpleadoModal(); 
+        loadEmpleados(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
     }
+}
 
-    let planesData = [
-        { id: 1, nombre: "Básico", precio_mensual: 8000, descripcion: "Cuidados básicos y alimentación" },
-        { id: 2, nombre: "Intermedio", precio_mensual: 12000, descripcion: "Incluye medicamentos básicos" },
-        { id: 3, nombre: "Más", precio_mensual: 16000, descripcion: "Atención premium 24/7" }
-    ];
+// ============================================================
+// SERVICIOS
+// ============================================================
+async function loadServicios() {
+    try {
+        const servicios = await apiFetch('/api/servicios');
+        const tbody = document.querySelector('#serviciosTable tbody');
+        if (tbody) tbody.innerHTML = servicios.map(s => `<tr><td>${s.nombre}</td><td>${s.proveedor||'-'}</td><td>${formatCurrency(s.monto)}</td><td>${formatDate(s.fecha_vencimiento)}</td><td><span class="badge ${s.pagado?'badge-success':'badge-danger'}">${s.pagado?'Pagado':'Pendiente'}</span></td><td><button class="btn btn-success btn-sm" onclick="marcarServicioPagado(${s.id})">Marcar Pagado</button></td>`).join('');
+    } catch(e) { console.error(e); }
+}
 
-    async function loadPlanes() {
-        const container = document.getElementById('planesContainer');
-        if (container) container.innerHTML = planesData.map(p => `<div class="plan-item"><div class="cost-info"><h4><i class="fas fa-tag"></i> Plan ${p.nombre}</h4><p>${p.descripcion}</p></div><div class="cost-input"><span>$</span><input type="number" id="plan_precio_${p.id}" value="${p.precio_mensual}" class="form-control" style="width:120px;"></div></div>`).join('');
+function openServicioModal() {
+    ['servicioNombre','servicioProveedor','servicioMonto','servicioVencimiento'].forEach(f => { 
+        const el = document.getElementById(f); 
+        if (el) el.value = ''; 
+    });
+    document.getElementById('servicioModal').classList.add('active');
+}
+
+function closeServicioModal() { 
+    document.getElementById('servicioModal').classList.remove('active'); 
+}
+
+async function saveServicio() {
+    const payload = { nombre: document.getElementById('servicioNombre')?.value||'', proveedor: document.getElementById('servicioProveedor')?.value||'', monto: parseFloat(document.getElementById('servicioMonto')?.value||0), fecha_vencimiento: document.getElementById('servicioVencimiento')?.value||null };
+    try { 
+        await apiFetch('/api/servicios', { method: 'POST', body: JSON.stringify(payload) }); 
+        showToast('Servicio registrado'); 
+        closeServicioModal(); 
+        loadServicios(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
     }
+}
 
-    async function savePlanes() {
-        for (const p of planesData) {
-            const precio = document.getElementById(`plan_precio_${p.id}`)?.value;
-            if (precio) {
-                p.precio_mensual = parseFloat(precio);
-                try { await apiFetch(`/api/planes/${p.id}`, { method: 'PUT', body: JSON.stringify({ nombre: p.nombre, precio_mensual: p.precio_mensual, descripcion: p.descripcion }) }); } catch(e) {}
+async function marcarServicioPagado(id) {
+    try { 
+        await apiFetch(`/api/servicios/${id}/pagar`, { method: 'PUT' }); 
+        showToast('Servicio marcado como pagado'); 
+        loadServicios(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
+    }
+}
+
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+let planesData = [
+    { id: 1, nombre: "Básico", precio_mensual: 8000, descripcion: "Cuidados básicos y alimentación" },
+    { id: 2, nombre: "Intermedio", precio_mensual: 12000, descripcion: "Incluye medicamentos básicos" },
+    { id: 3, nombre: "Más", precio_mensual: 16000, descripcion: "Atención premium 24/7" }
+];
+
+async function loadPlanes() {
+    const container = document.getElementById('planesContainer');
+    if (container) container.innerHTML = planesData.map(p => `<div class="plan-item"><div class="cost-info"><h4><i class="fas fa-tag"></i> Plan ${p.nombre}</h4><p>${p.descripcion}</p></div><div class="cost-input"><span>$</span><input type="number" id="plan_precio_${p.id}" value="${p.precio_mensual}" class="form-control" style="width:120px;"></div></div>`).join('');
+}
+
+async function savePlanes() {
+    for (const p of planesData) {
+        const precio = document.getElementById(`plan_precio_${p.id}`)?.value;
+        if (precio) {
+            p.precio_mensual = parseFloat(precio);
+            try { await apiFetch(`/api/planes/${p.id}`, { method: 'PUT', body: JSON.stringify({ nombre: p.nombre, precio_mensual: p.precio_mensual, descripcion: p.descripcion }) }); } catch(e) {}
+        }
+    }
+    showToast('Planes actualizados');
+}
+
+async function loadCostos() {
+    try {
+        const config = await apiFetch('/api/config');
+        const costs = config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : {};
+        const container = document.getElementById('costosContainer');
+        if (container) container.innerHTML = `
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-user-nurse"></i> Personal de Cuidado</h4><p>3 personas (turnos rotativos)</p></div><div class="cost-input"><span>$</span><input type="number" id="costPersonal" value="${costs.personal||52500}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-utensils"></i> Alimentación</h4><p>3 comidas + 2 colaciones diarias</p></div><div class="cost-input"><span>$</span><input type="number" id="costFood" value="${costs.food||30000}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-stethoscope"></i> Servicios Médicos</h4><p>Geriatra, nutriólogo, psicólogo</p></div><div class="cost-input"><span>$</span><input type="number" id="costMedical" value="${costs.medical||20000}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-bolt"></i> Servicios Básicos</h4><p>Luz, agua, gas, internet</p></div><div class="cost-input"><span>$</span><input type="number" id="costUtilities" value="${costs.utilities||10000}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-syringe"></i> Insumos Médicos</h4><p>Medicamentos básicos, material de curación</p></div><div class="cost-input"><span>$</span><input type="number" id="costSupplies" value="${costs.supplies||6500}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-shield-alt"></i> Seguros y Mantenimiento</h4><p>Seguro de responsabilidad civil</p></div><div class="cost-input"><span>$</span><input type="number" id="costInsurance" value="${costs.insurance||4000}" class="form-control"></div></div>
+            <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-chart-line"></i> Fondo de Contingencia</h4><p>Porcentaje del ingreso mensual</p></div><div class="cost-input"><input type="number" id="costContingencyPercent" value="${costs.contingencyPercent||10}" style="width:80px;"> <span>%</span></div></div>
+        `;
+    } catch(e) { console.error('Error cargando costos:', e); }
+}
+
+async function saveFinancialConfig() {
+    const costs = {
+        personal: parseFloat(document.getElementById('costPersonal')?.value||0),
+        food: parseFloat(document.getElementById('costFood')?.value||0),
+        medical: parseFloat(document.getElementById('costMedical')?.value||0),
+        utilities: parseFloat(document.getElementById('costUtilities')?.value||0),
+        supplies: parseFloat(document.getElementById('costSupplies')?.value||0),
+        insurance: parseFloat(document.getElementById('costInsurance')?.value||0),
+        contingencyPercent: parseFloat(document.getElementById('costContingencyPercent')?.value||0)
+    };
+    try { 
+        await apiFetch('/api/config', { method: 'PUT', body: JSON.stringify({ costs }) }); 
+        showToast('Costos guardados'); 
+        refreshAll(); 
+    } catch(err) { 
+        showToast(err.message, 'error'); 
+    }
+}
+
+// ============================================================
+// INVERSIONES (solo funciones básicas)
+// ============================================================
+async function loadInversionistas() {
+    try {
+        const inversionistas = await apiFetch('/api/inversionistas');
+        const tbody = document.querySelector('#inversionistasTable tbody');
+        if (tbody) {
+            if (inversionistas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay inversionistas registrados</td></tr>';
+            } else {
+                tbody.innerHTML = inversionistas.map(inv => {
+                    const pagoMensual = inv.monto_inicial * (inv.porcentaje_comision / 100);
+                    return `
+                        <tr>
+                            <td><strong>${escapeHtml(inv.nombre)}</strong>${inv.email ? `<br><small>${escapeHtml(inv.email)}</small>` : ''}</td>
+                            <td>${formatCurrency(inv.monto_inicial)}</td>
+                            <td>${inv.porcentaje_comision}%</td>
+                            <td>${formatCurrency(pagoMensual)}</td>
+                            <td>${formatCurrency(inv.total_pagado || 0)}</td>
+                            <td>${formatDate(inv.fecha_inversion)}</td>
+                            <td><button class="btn btn-success btn-sm" onclick="abrirPagoInversionista(${inv.id})"><i class="fas fa-money-bill"></i> Pagar</button></td>
+                        </tr>
+                    `;
+                }).join('');
             }
         }
-        showToast('Planes actualizados');
+        await loadDashboardInversiones();
+    } catch(e) {
+        console.error('Error cargando inversionistas:', e);
+        showToast('Error al cargar inversionistas: ' + e.message, 'error');
     }
+}
 
-    async function loadCostos() {
-        try {
-            const config = await apiFetch('/api/config');
-            const costs = config.costs ? (typeof config.costs === 'string' ? JSON.parse(config.costs) : config.costs) : {};
-            const container = document.getElementById('costosContainer');
-            if (container) container.innerHTML = `
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-user-nurse"></i> Personal de Cuidado</h4><p>3 personas (turnos rotativos)</p></div><div class="cost-input"><span>$</span><input type="number" id="costPersonal" value="${costs.personal||52500}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-utensils"></i> Alimentación</h4><p>3 comidas + 2 colaciones diarias</p></div><div class="cost-input"><span>$</span><input type="number" id="costFood" value="${costs.food||30000}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-stethoscope"></i> Servicios Médicos</h4><p>Geriatra, nutriólogo, psicólogo</p></div><div class="cost-input"><span>$</span><input type="number" id="costMedical" value="${costs.medical||20000}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-bolt"></i> Servicios Básicos</h4><p>Luz, agua, gas, internet</p></div><div class="cost-input"><span>$</span><input type="number" id="costUtilities" value="${costs.utilities||10000}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-syringe"></i> Insumos Médicos</h4><p>Medicamentos básicos, material de curación</p></div><div class="cost-input"><span>$</span><input type="number" id="costSupplies" value="${costs.supplies||6500}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-shield-alt"></i> Seguros y Mantenimiento</h4><p>Seguro de responsabilidad civil</p></div><div class="cost-input"><span>$</span><input type="number" id="costInsurance" value="${costs.insurance||4000}" class="form-control"></div></div>
-                <div class="cost-item"><div class="cost-info"><h4><i class="fas fa-chart-line"></i> Fondo de Contingencia</h4><p>Porcentaje del ingreso mensual</p></div><div class="cost-input"><input type="number" id="costContingencyPercent" value="${costs.contingencyPercent||10}" style="width:80px;"> <span>%</span></div></div>
+async function loadDashboardInversiones() {
+    try {
+        const data = await apiFetch('/api/dashboard-inversiones');
+        document.getElementById('totalInversion').textContent = formatCurrency(data.resumen.inversion_total);
+        document.getElementById('totalPagado').textContent = formatCurrency(data.resumen.pagado_acumulado);
+        document.getElementById('totalPendiente').textContent = formatCurrency(data.resumen.pendiente_por_pagar);
+        document.getElementById('pacientesActuales').textContent = data.resumen.pacientes_actuales;
+    } catch(e) {
+        console.error('Error cargando dashboard inversiones:', e);
+    }
+}
+
+async function calcularROI() {
+    showLoading(true);
+    try {
+        const data = await apiFetch('/api/calcular-roi');
+        const resumenHtml = `
+            <div class="kpi-grid" style="margin-bottom: 20px;">
+                <div class="kpi-card"><div><h3>Utilidad Mensual</h3><div class="kpi-value">${formatCurrency(data.utilidad_mensual)}</div></div></div>
+                <div class="kpi-card"><div><h3>Ingreso Mensual</h3><div class="kpi-value">${formatCurrency(data.ingreso_mensual)}</div></div></div>
+                <div class="kpi-card"><div><h3>Costo Mensual</h3><div class="kpi-value">${formatCurrency(data.costo_mensual)}</div></div></div>
+            </div>
+        `;
+        let proyeccionesHtml = '<h4>Proyecciones por Inversionista</h4>';
+        for (const inv of data.inversionistas) {
+            const proyeccionesInv = data.proyecciones.filter(p => p.inversionista_id === inv.id);
+            proyeccionesHtml += `
+                <div class="card" style="margin-top: 15px;">
+                    <h5>${inv.nombre} - Inversión: ${formatCurrency(inv.monto_inicial)}</h5>
+                    <table class="table">
+                        <thead><tr><th>% Mensual</th><th>Pago Mensual</th><th>Meses para retornar</th><th>Retorno Anual</th><th>ROI Anual</th></tr></thead>
+                        <tbody>
+                            ${proyeccionesInv.map(p => `
+                                <tr>
+                                    <td><strong>${p.porcentaje}%</strong></td>
+                                    <td>${formatCurrency(p.pago_mensual)}</td>
+                                    <td>${p.meses_retorno} meses</td>
+                                    <td>${formatCurrency(p.retorno_anual)}</td>
+                                    <td>${p.roi_anual.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
             `;
-        } catch(e) { console.error('Error cargando costos:', e); }
+        }
+        document.getElementById('roiProyecciones').innerHTML = resumenHtml + proyeccionesHtml;
+        document.getElementById('roiCard').style.display = 'block';
+        showToast('Cálculo de ROI completado');
+    } catch(e) {
+        showToast('Error al calcular ROI: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
     }
+}
 
-    async function saveFinancialConfig() {
-        const costs = {
-            personal: parseFloat(document.getElementById('costPersonal')?.value||0),
-            food: parseFloat(document.getElementById('costFood')?.value||0),
-            medical: parseFloat(document.getElementById('costMedical')?.value||0),
-            utilities: parseFloat(document.getElementById('costUtilities')?.value||0),
-            supplies: parseFloat(document.getElementById('costSupplies')?.value||0),
-            insurance: parseFloat(document.getElementById('costInsurance')?.value||0),
-            contingencyPercent: parseFloat(document.getElementById('costContingencyPercent')?.value||0)
-        };
-        try { await apiFetch('/api/config', { method: 'PUT', body: JSON.stringify({ costs }) }); showToast('Costos guardados'); refreshAll(); }
-        catch(err) { showToast(err.message, 'error'); }
+function simularROI() {
+    const monto = parseFloat(document.getElementById('simMonto').value);
+    const porcentaje = parseFloat(document.getElementById('simPorcentaje').value);
+    if (!monto || !porcentaje) {
+        showToast('Ingrese monto y porcentaje', 'error');
+        return;
     }
+    const pagoMensual = monto * (porcentaje / 100);
+    const mesesRetorno = Math.ceil(monto / pagoMensual);
+    const roiAnual = (pagoMensual * 12 / monto) * 100;
+    document.getElementById('simPagoMensual').textContent = formatCurrency(pagoMensual);
+    document.getElementById('simMesesRetorno').textContent = mesesRetorno;
+    document.getElementById('simROIAnual').textContent = roiAnual.toFixed(1) + '%';
+    document.getElementById('simulacionResultado').style.display = 'block';
+}
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initCharts();
-        checkAuth();
-        setupKPIClicks();
-        refreshAll();
-        loadPatients();
-    });
+function openInversionistaModal(id = null) {
+    document.getElementById('inversionistaId').value = '';
+    document.getElementById('invNombre').value = '';
+    document.getElementById('invEmail').value = '';
+    document.getElementById('invTelefono').value = '';
+    document.getElementById('invMonto').value = '';
+    document.getElementById('invComision').value = '5';
+    document.getElementById('invFecha').value = new Date().toISOString().split('T')[0];
+    if (id) {
+        fetch(`/api/inversionistas/${id}`).then(r => r.json()).then(inv => {
+            document.getElementById('inversionistaId').value = inv.id;
+            document.getElementById('invNombre').value = inv.nombre;
+            document.getElementById('invEmail').value = inv.email || '';
+            document.getElementById('invTelefono').value = inv.telefono || '';
+            document.getElementById('invMonto').value = inv.monto_inicial;
+            document.getElementById('invComision').value = inv.porcentaje_comision;
+            document.getElementById('invFecha').value = inv.fecha_inversion?.split('T')[0] || '';
+        });
+    }
+    document.getElementById('inversionistaModal').classList.add('active');
+}
+
+function closeInversionistaModal() {
+    document.getElementById('inversionistaModal').classList.remove('active');
+}
+
+async function saveInversionista() {
+    const id = document.getElementById('inversionistaId').value;
+    const payload = {
+        nombre: document.getElementById('invNombre').value,
+        email: document.getElementById('invEmail').value,
+        telefono: document.getElementById('invTelefono').value,
+        monto_inicial: parseFloat(document.getElementById('invMonto').value),
+        porcentaje_comision: parseFloat(document.getElementById('invComision').value),
+        fecha_inversion: document.getElementById('invFecha').value
+    };
+    try {
+        if (id) {
+            await apiFetch(`/api/inversionistas/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+            await apiFetch('/api/inversionistas', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        showToast('Inversionista guardado');
+        closeInversionistaModal();
+        loadInversionistas();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function abrirPagoInversionista(inversionistaId) {
+    document.getElementById('pagoInvId').value = inversionistaId;
+    document.getElementById('pagoInvMonto').value = '';
+    document.getElementById('pagoInvMes').value = new Date().getMonth() + 1;
+    document.getElementById('pagoInvAño').value = new Date().getFullYear();
+    document.getElementById('pagoInversionistaModal').classList.add('active');
+}
+
+function closePagoInversionistaModal() {
+    document.getElementById('pagoInversionistaModal').classList.remove('active');
+}
+
+async function registrarPagoInversionista() {
+    const inversionistaId = document.getElementById('pagoInvId').value;
+    const payload = {
+        monto: parseFloat(document.getElementById('pagoInvMonto').value),
+        mes: parseInt(document.getElementById('pagoInvMes').value),
+        año: parseInt(document.getElementById('pagoInvAño').value),
+        metodo_pago: document.getElementById('pagoInvMetodo').value
+    };
+    try {
+        await apiFetch(`/api/inversionistas/${inversionistaId}/pagos`, { method: 'POST', body: JSON.stringify(payload) });
+        showToast('Pago registrado');
+        closePagoInversionistaModal();
+        loadInversionistas();
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function toggleRoiContent() {
+    const roiContent = document.getElementById('roiContent');
+    const roiIcon = document.getElementById('roiToggleIcon');
+    if (roiContent.style.display === 'none') {
+        roiContent.style.display = 'block';
+        roiIcon.className = 'fas fa-chevron-up';
+    } else {
+        roiContent.style.display = 'none';
+        roiIcon.className = 'fas fa-chevron-down';
+    }
+}
+
+// ============================================================
+// INICIALIZACIÓN
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    checkAuth();
+    setupKPIClicks();
+    refreshAll();
+    loadPatients();
+});
+
 </script>
 </body>
 </html>
