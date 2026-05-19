@@ -2194,7 +2194,7 @@ function verificarLogin() {
         if (pageName === 'servicios') loadServicios();
         if (pageName === 'settings') { loadPlanes(); loadCostos(); }
         if (pageName === 'historia') cargarPacientesSelects();
-        if (pageName === 'pagos') { cargarListaPacientesAdeudos();}
+       if (pageName === 'pagos') { cargarListaPacientesAdeudos();}
         if (pageName === 'medicamentos') { cargarPacientesSelects(); cargarMedicamentosSelect(); cargarMedicamentosPorPacienteSelect(); }
     }
 
@@ -3038,11 +3038,11 @@ async function cargarPacientesSelects() {
     }
 
     function openPagoModal() {
-        cargarPacientesSelects();
-        document.getElementById('pagoMonto').value = '';
-        document.getElementById('pagoMetodo').value = 'efectivo';
-        document.getElementById('pagoModal').classList.add('active');
-    }
+    cargarPacientesSelects();
+    document.getElementById('pagoMonto').value = '';
+    document.getElementById('pagoMetodo').value = 'efectivo';
+    document.getElementById('pagoModal').classList.add('active');
+}
     function closePagoModal() { document.getElementById('pagoModal').classList.remove('active'); }
 
     async function registrarPago() {
