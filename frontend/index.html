@@ -2840,6 +2840,233 @@ async function cargarPacientesSelects() {
         showToast('Error al cargar empleados', 'error');
     }
 }
+    // ============================================================
+// NUEVAS FUNCIONES PARA PAGOS (similar a nómina)
+// ============================================================
+
+let todosLosPacientes = [];
+
+async function cargarListaPacientesAdeudos() {
+    try {
+        todosLosPacientes = await apiFetch('/api/patients');
+        
+        for (const p of todosLosPacientes) {
+            try {
+                const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
+                p.adeudo = adeudoData.adeudo || 0;
+                p.precio_mensual = adeudoData.precio_mensual || 0;
+                p.meses_atraso = Math.floor(p.adeudo / (p.precio_mensual || 1));
+            } catch(e) {
+                p.adeudo = 0;
+                p.meses_atraso = 0;
+            }
+        }
+        
+        actualizarKPIsPagos();
+        const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
+        renderTablaAdeudos(pacientesConAdeudo);
+        cargarSelectPacientesPagos();
+        
+    } catch(e) {
+        console.error('Error cargando pacientes:', e);
+        showToast('Error al cargar pacientes', 'error');
+    }
+}
+
+function actualizarKPIsPagos() {
+    const totalAdeudos = todosLosPacientes.reduce((sum, p) => sum + (p.adeudo || 0), 0);
+    document.getElementById('totalAdeudos').textContent = formatCurrency(totalAdeudos);
+}
+
+function renderTablaAdeudos(pacientesConAdeudo) {
+    const tbody = document.getElementById('adeudosTableBody');
+    if (!tbody) return;
+    
+    if (pacientesConAdeudo.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay pacientes con adeudos</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pacientesConAdeudo.map(p => {
+        let adeudoClass = 'adeudo-bajo';
+        if (p.adeudo > p.precio_mensual * 2) adeudoClass = 'adeudo-alto';
+        else if (p.adeudo > p.precio_mensual) adeudoClass = 'adeudo-medio';
+        
+        const planNombre = p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más';
+        
+        return `
+            <tr>
+                <td><strong>${escapeHtml(p.name)}</strong><br><small>${p.cama_asignada ? 'Cama ' + p.cama_asignada : 'Sin cama'}</small></td>
+                <td>${planNombre}</td>
+                <td>${formatCurrency(p.precio_mensual)}</td>
+                <td><span class="${adeudoClass}">${formatCurrency(p.adeudo)}</span></td>
+                <td>${p.meses_atraso} ${p.meses_atraso === 1 ? 'mes' : 'meses'}</td>
+                <td><span class="badge badge-success">Activo</span></td>
+                <td>
+                    <button class="btn-pagar-adeudo" onclick="abrirPagoRapido(${p.id}, ${p.adeudo})">
+                        <i class="fas fa-money-bill"></i> Pagar
+                    </button>
+                    <button class="btn-ver-pagos" onclick="verHistorialPagosPaciente(${p.id})" style="margin-left: 8px;">
+                        <i class="fas fa-history"></i> Ver pagos
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filtrarTablaAdeudos() {
+    const searchTerm = document.getElementById('searchPacienteAdeudo')?.value.toLowerCase() || '';
+    const pacientesConAdeudo = todosLosPacientes.filter(p => 
+        p.adeudo > 0 && p.name?.toLowerCase().includes(searchTerm)
+    );
+    renderTablaAdeudos(pacientesConAdeudo);
+}
+
+async function cargarSelectPacientesPagos() {
+    try {
+        const pacientes = await apiFetch('/api/patients');
+        const select = document.getElementById('pagosPacienteSelect');
+        if (select) {
+            select.innerHTML = '<option value="">-- Seleccionar paciente --</option>' + 
+                pacientes.map(p => `<option value="${p.id}">${escapeHtml(p.name)} - ${p.cama_asignada || 'Sin cama'}</option>`).join('');
+        }
+    } catch(e) {
+        console.error('Error cargando select:', e);
+    }
+}
+
+async function cargarHistorialPagos() {
+    const pacienteId = document.getElementById('pagosPacienteSelect')?.value;
+    if (!pacienteId) {
+        document.getElementById('historialPagosContainer').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <p>Seleccione un paciente para ver su historial de pagos</p>
+            </div>
+        `;
+        return;
+    }
+    
+    showLoading(true);
+    try {
+        const paciente = await apiFetch(`/api/patients/${pacienteId}`);
+        const pagos = await apiFetch(`/api/pacientes/${pacienteId}/pagos`);
+        const adeudo = await apiFetch(`/api/pacientes/${pacienteId}/adeudo`);
+        
+        const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0);
+        const ultimoPago = pagos.length > 0 ? pagos[0] : null;
+        
+        const container = document.getElementById('historialPagosContainer');
+        container.innerHTML = `
+            <div class="resumen-pagos">
+                <div class="resumen-card">
+                    <div class="label">Total Pagado</div>
+                    <div class="value" style="color: #10b981;">${formatCurrency(totalPagado)}</div>
+                </div>
+                <div class="resumen-card">
+                    <div class="label">Adeudo Actual</div>
+                    <div class="value" style="color: ${adeudo.adeudo > 0 ? '#dc2626' : '#10b981'};">${formatCurrency(adeudo.adeudo)}</div>
+                </div>
+                <div class="resumen-card">
+                    <div class="label">Último Pago</div>
+                    <div class="value" style="font-size: 0.9em;">${ultimoPago ? formatDate(ultimoPago.fecha_pago) : 'Sin pagos'}</div>
+                </div>
+            </div>
+            <h4><i class="fas fa-list"></i> Historial de Pagos</h4>
+            <div class="pagos-timeline">
+                ${pagos.length === 0 ? '<div class="empty-state"><i class="fas fa-receipt"></i><p>No hay pagos registrados</p></div>' : 
+                    pagos.map(p => `
+                        <div class="pago-item">
+                            <div class="pago-info">
+                                <div class="pago-fecha">
+                                    <i class="fas fa-calendar"></i> ${formatDate(p.fecha_pago)}
+                                </div>
+                                <div class="pago-monto">
+                                    ${formatCurrency(p.monto)}
+                                    <span class="pago-metodo">
+                                        <i class="fas fa-${p.metodo_pago === 'efectivo' ? 'money-bill' : p.metodo_pago === 'transferencia' ? 'exchange-alt' : 'credit-card'}"></i>
+                                        ${p.metodo_pago === 'efectivo' ? 'Efectivo' : p.metodo_pago === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="descargarRecibo(${p.id})">
+                                <i class="fas fa-download"></i> Recibo
+                            </button>
+                        </div>
+                    `).join('')
+                }
+            </div>
+        `;
+        
+    } catch(e) {
+        showToast('Error cargando historial: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function abrirPagoRapido(pacienteId, montoSugerido) {
+    const select = document.getElementById('pagoPaciente');
+    if (select) select.value = pacienteId;
+    const montoInput = document.getElementById('pagoMonto');
+    if (montoInput && montoSugerido > 0) {
+        montoInput.value = montoSugerido;
+    }
+    document.getElementById('pagoModal').classList.add('active');
+}
+
+async function verHistorialPagosPaciente(pacienteId) {
+    const select = document.getElementById('pagosPacienteSelect');
+    if (select) {
+        select.value = pacienteId;
+        await cargarHistorialPagos();
+        document.getElementById('historialPagosContainer').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function exportarReportePagos() {
+    const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
+    const csvData = [
+        ['Paciente', 'Cama', 'Plan', 'Mensualidad', 'Adeudo', 'Meses Atraso', 'Teléfono'],
+        ...pacientesConAdeudo.map(p => [
+            p.name,
+            p.cama_asignada || '',
+            p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más',
+            p.precio_mensual || 0,
+            p.adeudo,
+            p.meses_atraso,
+            p.phone || ''
+        ])
+    ];
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_adeudos_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Reporte exportado');
+}
+
+async function descargarRecibo(pagoId) {
+    try {
+        const response = await fetch(`${API_URL}/api/pagos/${pagoId}/recibo`);
+        if (!response.ok) throw new Error('Error al generar recibo');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recibo_${pagoId}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        showToast('Recibo descargado');
+    } catch(e) {
+        showToast('Error al descargar recibo', 'error');
+    }
+}
 // ============================================================
 // MÓDULO DE INVERSIONES
 // ============================================================
