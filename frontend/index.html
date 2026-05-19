@@ -1050,6 +1050,247 @@
         text-align: center;
     }
 }
+
+        /* Estilos para lista de pacientes estilo chat */
+.pacientes-lista {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+}
+
+.paciente-lista-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.paciente-lista-item:hover {
+    background: var(--light);
+    transform: translateX(5px);
+}
+
+.paciente-lista-item.selected {
+    background: linear-gradient(135deg, #667eea15, #764ba215);
+    border-left: 4px solid var(--primary);
+}
+
+.paciente-avatar-small {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
+
+.paciente-info-lista {
+    flex: 1;
+}
+
+.paciente-nombre-lista {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.paciente-detalle-lista {
+    font-size: 0.75em;
+    color: var(--gray);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.adeudo-badge-lista {
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+.pagado-badge-lista {
+    background: #d1fae5;
+    color: #059669;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+/* Estilos para tabla de adeudos */
+#adeudosTable {
+    width: 100%;
+}
+
+.adeudo-alto {
+    color: #dc2626;
+    font-weight: 700;
+    background: #fee2e2;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.adeudo-medio {
+    color: #d97706;
+    font-weight: 600;
+    background: #fed7aa;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.adeudo-bajo {
+    color: #059669;
+    background: #d1fae5;
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.btn-pagar-adeudo {
+    background: #dc2626;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-pagar-adeudo:hover {
+    background: #b91c1c;
+    transform: scale(1.02);
+}
+
+.btn-ver-pagos {
+    background: #3b82f6;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8em;
+    border: none;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.btn-ver-pagos:hover {
+    background: #2563eb;
+}
+
+/* Estilos para historial de pagos */
+.pagos-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.pago-item {
+    background: var(--light);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    transition: all 0.3s;
+    border-left: 4px solid var(--success);
+}
+
+.pago-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pago-info {
+    flex: 1;
+}
+
+.pago-fecha {
+    font-size: 0.85em;
+    color: var(--gray);
+    margin-bottom: 4px;
+}
+
+.pago-fecha i {
+    margin-right: 5px;
+}
+
+.pago-monto {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--success);
+}
+
+.pago-metodo {
+    display: inline-block;
+    padding: 4px 12px;
+    background: white;
+    border-radius: 20px;
+    font-size: 0.8em;
+    margin-left: 10px;
+}
+
+.resumen-pagos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea15, #764ba215);
+    border-radius: 16px;
+}
+
+.resumen-card {
+    text-align: center;
+}
+
+.resumen-card .label {
+    font-size: 0.75em;
+    color: var(--gray);
+    text-transform: uppercase;
+}
+
+.resumen-card .value {
+    font-size: 1.3em;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+@media (max-width: 768px) {
+    .resumen-pagos {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .pago-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .paciente-detalle-lista {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
         
     </style>
 </head>
@@ -2853,6 +3094,365 @@ async function cargarPacientesSelects() {
         showToast('Error al cargar empleados', 'error');
     }
 }
+    // ============================================================
+// FUNCIONES PARA PAGOS - ESTILO LISTA DE CHAT
+// ============================================================
+
+let todosLosPacientes = [];
+let pacienteSeleccionadoId = null;
+let pacienteSeleccionadoAdeudo = 0;
+
+// Cargar lista completa de pacientes
+async function cargarListaPacientesAdeudos() {
+    try {
+        todosLosPacientes = await apiFetch('/api/patients');
+        
+        // Calcular adeudo para cada paciente
+        for (const p of todosLosPacientes) {
+            try {
+                const adeudoData = await apiFetch(`/api/pacientes/${p.id}/adeudo`);
+                p.adeudo = adeudoData.adeudo || 0;
+                p.precio_mensual = adeudoData.precio_mensual || 0;
+                p.meses_atraso = Math.floor(p.adeudo / (p.precio_mensual || 1));
+            } catch(e) {
+                p.adeudo = 0;
+                p.meses_atraso = 0;
+            }
+        }
+        
+        // Actualizar KPIs
+        await actualizarKPIsPagos();
+        
+        // Renderizar tabla de adeudos
+        const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
+        renderTablaAdeudos(pacientesConAdeudo);
+        
+        // Renderizar lista estilo chat
+        renderListaPacientes(todosLosPacientes);
+        
+    } catch(e) {
+        console.error('Error cargando pacientes:', e);
+        showToast('Error al cargar pacientes', 'error');
+    }
+}
+
+// Actualizar KPIs de pagos
+async function actualizarKPIsPagos() {
+    try {
+        const totalAdeudos = todosLosPacientes.reduce((sum, p) => sum + (p.adeudo || 0), 0);
+        
+        // Calcular ingresos del mes actual
+        const fechaActual = new Date();
+        const mesActual = fechaActual.getMonth() + 1;
+        const añoActual = fechaActual.getFullYear();
+        
+        let ingresosMes = 0;
+        for (const p of todosLosPacientes) {
+            try {
+                const pagos = await apiFetch(`/api/pacientes/${p.id}/pagos`);
+                const pagosEsteMes = pagos.filter(pago => {
+                    const fechaPago = new Date(pago.fecha_pago);
+                    return fechaPago.getMonth() + 1 === mesActual && 
+                           fechaPago.getFullYear() === añoActual;
+                });
+                ingresosMes += pagosEsteMes.reduce((sum, pago) => sum + pago.monto, 0);
+            } catch(e) {}
+        }
+        
+        // Calcular tasa de cobranza
+        const montoEsperado = todosLosPacientes.reduce((sum, p) => sum + (p.precio_mensual || 0), 0);
+        const tasaCobranza = montoEsperado > 0 ? (ingresosMes / montoEsperado) * 100 : 0;
+        
+        const totalEl = document.getElementById('totalAdeudos');
+        if (totalEl) totalEl.textContent = formatCurrency(totalAdeudos);
+        
+        const ingresosEl = document.getElementById('ingresosMes');
+        if (ingresosEl) ingresosEl.textContent = formatCurrency(ingresosMes);
+        
+        const tasaEl = document.getElementById('tasaCobranza');
+        if (tasaEl) tasaEl.textContent = tasaCobranza.toFixed(1) + '%';
+        
+    } catch(e) {
+        console.error('Error actualizando KPIs:', e);
+    }
+}
+
+// Renderizar tabla de adeudos
+function renderTablaAdeudos(pacientesConAdeudo) {
+    const tbody = document.getElementById('adeudosTableBody');
+    if (!tbody) return;
+    
+    if (pacientesConAdeudo.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay pacientes con adeudos</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pacientesConAdeudo.map(p => {
+        let adeudoClass = 'adeudo-bajo';
+        if (p.adeudo > p.precio_mensual * 2) adeudoClass = 'adeudo-alto';
+        else if (p.adeudo > p.precio_mensual) adeudoClass = 'adeudo-medio';
+        
+        const planNombre = p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más';
+        
+        return `
+            <tr>
+                <td>
+                    <strong>${escapeHtml(p.name)}</strong>
+                    <br><small style="color:#666;">${p.cama_asignada ? 'Cama ' + p.cama_asignada : 'Sin cama'}</small>
+                </td
+                <td>${planNombre}</td
+                <td>${formatCurrency(p.precio_mensual)}</td
+                <td><span class="${adeudoClass}">${formatCurrency(p.adeudo)}</span></td
+                <td>${p.meses_atraso} ${p.meses_atraso === 1 ? 'mes' : 'meses'}</td
+                <td>
+                    <button class="btn-pagar-adeudo" onclick="abrirPagoRapido(${p.id}, ${p.adeudo})">
+                        <i class="fas fa-money-bill"></i> Pagar
+                    </button>
+                 </td
+            </tr>
+        `;
+    }).join('');
+}
+
+// Filtrar tabla de adeudos
+function filtrarTablaAdeudos() {
+    const searchTerm = document.getElementById('searchPacienteAdeudo')?.value.toLowerCase() || '';
+    const pacientesConAdeudo = todosLosPacientes.filter(p => 
+        p.adeudo > 0 && 
+        (p.name?.toLowerCase().includes(searchTerm) || 
+         p.cama_asignada?.toLowerCase().includes(searchTerm))
+    );
+    renderTablaAdeudos(pacientesConAdeudo);
+}
+
+// Renderizar lista de pacientes estilo chat
+function renderListaPacientes(pacientes) {
+    const container = document.getElementById('pacientesListaContainer');
+    if (!container) return;
+    
+    if (pacientes.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay pacientes registrados</div>';
+        return;
+    }
+    
+    container.innerHTML = pacientes.map(p => {
+        const iniciales = p.name ? p.name.substring(0, 2).toUpperCase() : '??';
+        const tieneAdeudo = p.adeudo > 0;
+        
+        return `
+            <div class="paciente-lista-item" onclick="seleccionarPacienteLista(${p.id})" data-id="${p.id}">
+                <div class="paciente-avatar-small">${iniciales}</div>
+                <div class="paciente-info-lista">
+                    <div class="paciente-nombre-lista">
+                        ${escapeHtml(p.name)}
+                        ${tieneAdeudo ? 
+                            `<span class="adeudo-badge-lista">💰 Adeudo ${formatCurrency(p.adeudo)}</span>` : 
+                            `<span class="pagado-badge-lista">✅ Al corriente</span>`}
+                    </div>
+                    <div class="paciente-detalle-lista">
+                        <span><i class="fas fa-bed"></i> ${p.cama_asignada || 'Sin cama'}</span>
+                        <span><i class="fas fa-phone"></i> ${p.phone || 'Sin teléfono'}</span>
+                        <span><i class="fas fa-tag"></i> ${p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más'}</span>
+                        <span><i class="fas fa-calendar"></i> ${calcularEdad(p.birthdate)} años</span>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: var(--gray);"></i>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filtrar lista de pacientes
+function filtrarListaPacientes() {
+    const searchTerm = document.getElementById('searchPacienteLista')?.value.toLowerCase() || '';
+    const items = document.querySelectorAll('#pacientesListaContainer .paciente-lista-item');
+    items.forEach(item => {
+        const nombre = item.querySelector('.paciente-nombre-lista')?.textContent.toLowerCase() || '';
+        item.style.display = nombre.includes(searchTerm) ? 'flex' : 'none';
+    });
+}
+
+// Seleccionar paciente de la lista
+async function seleccionarPacienteLista(pacienteId) {
+    // Remover selección anterior
+    document.querySelectorAll('.paciente-lista-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Marcar el seleccionado
+    const selected = document.querySelector(`.paciente-lista-item[data-id="${pacienteId}"]`);
+    if (selected) selected.classList.add('selected');
+    
+    pacienteSeleccionadoId = pacienteId;
+    
+    // Cargar historial de pagos
+    await cargarHistorialPagosPorId(pacienteId);
+}
+
+// Cargar historial de pagos de un paciente específico
+async function cargarHistorialPagosPorId(pacienteId) {
+    showLoading(true);
+    try {
+        const paciente = await apiFetch(`/api/patients/${pacienteId}`);
+        const pagos = await apiFetch(`/api/pacientes/${pacienteId}/pagos`);
+        const adeudo = await apiFetch(`/api/pacientes/${pacienteId}/adeudo`);
+        
+        pacienteSeleccionadoAdeudo = adeudo.adeudo;
+        
+        const totalPagado = pagos.reduce((sum, p) => sum + p.monto, 0);
+        const ultimoPago = pagos.length > 0 ? pagos[0] : null;
+        
+        const container = document.getElementById('historialPagosContainer');
+        const btnPagar = document.getElementById('btnPagarAdeudo');
+        const historialCard = document.getElementById('historialPagosCard');
+        
+        if (historialCard) historialCard.style.display = 'block';
+        if (btnPagar) btnPagar.style.display = adeudo.adeudo > 0 ? 'inline-flex' : 'none';
+        
+        if (container) {
+            container.innerHTML = `
+                <div class="resumen-pagos">
+                    <div class="resumen-card">
+                        <div class="label">Paciente</div>
+                        <div class="value" style="font-size: 1em;">${escapeHtml(paciente.name)}</div>
+                        <div class="label">Cama ${paciente.cama_asignada || 'N/A'}</div>
+                    </div>
+                    <div class="resumen-card">
+                        <div class="label">Total Pagado</div>
+                        <div class="value" style="color: #10b981;">${formatCurrency(totalPagado)}</div>
+                    </div>
+                    <div class="resumen-card">
+                        <div class="label">Adeudo Actual</div>
+                        <div class="value" style="color: ${adeudo.adeudo > 0 ? '#dc2626' : '#10b981'};">${formatCurrency(adeudo.adeudo)}</div>
+                    </div>
+                    <div class="resumen-card">
+                        <div class="label">Último Pago</div>
+                        <div class="value" style="font-size: 0.9em;">${ultimoPago ? formatDate(ultimoPago.fecha_pago) : 'Sin pagos'}</div>
+                    </div>
+                </div>
+                <h4><i class="fas fa-list"></i> Historial de Pagos</h4>
+                <div class="pagos-timeline">
+                    ${pagos.length === 0 ? 
+                        '<div class="empty-state"><i class="fas fa-receipt"></i><p>No hay pagos registrados</p></div>' : 
+                        pagos.map(p => `
+                            <div class="pago-item">
+                                <div class="pago-info">
+                                    <div class="pago-fecha">
+                                        <i class="fas fa-calendar"></i> ${formatDate(p.fecha_pago)}
+                                    </div>
+                                    <div class="pago-monto">
+                                        ${formatCurrency(p.monto)}
+                                        <span class="pago-metodo">
+                                            <i class="fas fa-${p.metodo_pago === 'efectivo' ? 'money-bill' : p.metodo_pago === 'transferencia' ? 'exchange-alt' : 'credit-card'}"></i>
+                                            ${p.metodo_pago === 'efectivo' ? 'Efectivo' : p.metodo_pago === 'transferencia' ? 'Transferencia' : 'Tarjeta'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')
+                    }
+                </div>
+            `;
+        }
+        
+    } catch(e) {
+        console.error('Error cargando historial:', e);
+        showToast('Error cargando historial: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Abrir pago rápido
+function abrirPagoRapido(pacienteId, montoSugerido) {
+    const select = document.getElementById('pagoPaciente');
+    if (select) select.value = pacienteId;
+    const montoInput = document.getElementById('pagoMonto');
+    if (montoInput && montoSugerido > 0) {
+        montoInput.value = montoSugerido;
+    }
+    document.getElementById('pagoModal').classList.add('active');
+}
+
+// Abrir pago desde el historial
+function abrirPagoDesdeHistorial() {
+    if (pacienteSeleccionadoId) {
+        abrirPagoRapido(pacienteSeleccionadoId, pacienteSeleccionadoAdeudo);
+    }
+}
+
+// Exportar reporte de pagos a CSV
+function exportarReportePagos() {
+    const pacientesConAdeudo = todosLosPacientes.filter(p => p.adeudo > 0);
+    const csvData = [
+        ['Paciente', 'Cama', 'Plan', 'Mensualidad', 'Adeudo', 'Meses Atraso', 'Teléfono'],
+        ...pacientesConAdeudo.map(p => [
+            p.name,
+            p.cama_asignada || '',
+            p.plan_id == 1 ? 'Básico' : p.plan_id == 2 ? 'Intermedio' : 'Más',
+            p.precio_mensual || 0,
+            p.adeudo,
+            p.meses_atraso,
+            p.phone || ''
+        ])
+    ];
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_adeudos_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Reporte exportado');
+}
+
+// Modificar el registrarPago original para que recargue los datos
+const registrarPagoOriginal = registrarPago;
+registrarPago = async function() {
+    const pacienteId = document.getElementById('pagoPaciente')?.value;
+    const monto = document.getElementById('pagoMonto')?.value;
+    const metodo = document.getElementById('pagoMetodo')?.value;
+    
+    if (!pacienteId || !monto) { 
+        showToast('Complete los campos', 'error'); 
+        return; 
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/pacientes/${pacienteId}/pagos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monto: parseFloat(monto), metodo_pago: metodo })
+        });
+        
+        if (!response.ok) throw new Error(await response.text());
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; 
+        a.download = `recibo_${Date.now()}.pdf`; 
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        showToast('Pago registrado y recibo generado');
+        closePagoModal();
+        
+        // Recargar todos los datos
+        await cargarListaPacientesAdeudos();
+        
+        // Si había un paciente seleccionado, recargar su historial
+        if (pacienteSeleccionadoId) {
+            await cargarHistorialPagosPorId(pacienteSeleccionadoId);
+        }
+        
+    } catch(err) { 
+        showToast(err.message, 'error'); 
+    }
+};
+            
     // ============================================================
 // NUEVAS FUNCIONES PARA PAGOS (similar a nómina)
 // ============================================================
