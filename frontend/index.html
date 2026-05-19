@@ -1598,19 +1598,122 @@
 
     <main class="main-content">
         <!-- Dashboard Page -->
-        <div id="page-dashboard" class="page">
-            <div class="page-header">
-                <h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
-                <button class="btn btn-primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> Actualizar</button>
+<div id="page-dashboard" class="page">
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <!-- Selector de período -->
+            <div class="period-selector">
+                <select id="periodType" class="form-control" style="width: auto;" onchange="changePeriodType()">
+                    <option value="projection">Proyección (12 meses)</option>
+                    <option value="real">Datos Reales</option>
+                    <option value="comparison">Comparación</option>
+                </select>
+                <select id="monthSelector" class="form-control" style="width: auto;" onchange="loadRealData()">
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <select id="yearSelector" class="form-control" style="width: auto;" onchange="loadRealData()">
+                    <!-- Se llenará dinámicamente -->
+                </select>
             </div>
-            <div class="kpi-grid">
-                <div class="kpi-card"><div class="kpi-content"><div><h3>Pacientes Activos</h3><div class="kpi-value" id="totalPatients">—</div></div><div class="kpi-icon"><i class="fas fa-users"></i></div></div></div>
-                <div class="kpi-card success"><div class="kpi-content"><div><h3>Ingresos Mensuales</h3><div class="kpi-value" id="monthlyIncome">—</div></div><div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div></div></div>
-                <div class="kpi-card warning"><div class="kpi-content"><div><h3>Costos Mensuales</h3><div class="kpi-value" id="monthlyCosts">—</div></div><div class="kpi-icon"><i class="fas fa-receipt"></i></div></div></div>
-                <div class="kpi-card danger"><div class="kpi-content"><div><h3>Utilidad Neta</h3><div class="kpi-value" id="netProfit">—</div></div><div class="kpi-icon"><i class="fas fa-wallet"></i></div></div></div>
+            <button class="btn btn-primary" onclick="refreshAll()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+            <button class="btn btn-success" onclick="exportDashboardData()">
+                <i class="fas fa-file-excel"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs con evolución -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-content">
+                <div>
+                    <h3>Pacientes Activos 
+                        <span id="pacientesTrend" style="font-size: 0.7em;"></span>
+                    </h3>
+                    <div class="kpi-value" id="totalPatients">—</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-users"></i></div>
             </div>
-            <div class="card"><div class="card-header"><h3>Proyección Financiera (12 meses)</h3></div><div class="chart-container"><canvas id="financialChart"></canvas></div></div>
-            <!-- Reemplaza el div del costChart actual por este -->
+        </div>
+        <div class="kpi-card success">
+            <div class="kpi-content">
+                <div>
+                    <h3>Ingresos Mensuales
+                        <span id="ingresosTrend" style="font-size: 0.7em;"></span>
+                    </h3>
+                    <div class="kpi-value" id="monthlyIncome">—</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card warning">
+            <div class="kpi-content">
+                <div>
+                    <h3>Costos Mensuales
+                        <span id="costosTrend" style="font-size: 0.7em;"></span>
+                    </h3>
+                    <div class="kpi-value" id="monthlyCosts">—</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-receipt"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card danger">
+            <div class="kpi-content">
+                <div>
+                    <h3>Utilidad Neta
+                        <span id="utilidadTrend" style="font-size: 0.7em;"></span>
+                    </h3>
+                    <div class="kpi-value" id="netProfit">—</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-wallet"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfica principal con selector de métrica -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Evolución Financiera</h3>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-sm btn-secondary" onclick="toggleMetric('income')">Ingresos</button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleMetric('costs')">Costos</button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleMetric('profit')">Utilidad</button>
+                <button class="btn btn-sm btn-primary" onclick="toggleMetric('all')">Todos</button>
+            </div>
+        </div>
+        <div class="chart-container" style="height: 400px;">
+            <canvas id="financialChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabla de datos mensuales -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-table"></i> Datos Mensuales Detallados</h3>
+            <button class="btn btn-sm btn-success" onclick="exportMonthlyData()">
+                <i class="fas fa-download"></i> Exportar CSV
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table" id="monthlyDataTable">
+                <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th>Pacientes</th>
+                        <th>Ingresos</th>
+                        <th>Costos</th>
+                        <th>Utilidad</th>
+                        <th>Margen</th>
+                    </tr>
+                </thead>
+                <tbody id="monthlyDataBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>    <!-- Reemplaza el div del costChart actual por este -->
 <div class="card">
     <div class="card-header">
         <h3><i class="fas fa-chart-bar"></i> Distribución de Costos</h3>
