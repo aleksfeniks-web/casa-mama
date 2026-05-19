@@ -1940,7 +1940,7 @@ function verificarLogin() {
         if (pageName === 'servicios') loadServicios();
         if (pageName === 'settings') { loadPlanes(); loadCostos(); }
         if (pageName === 'historia') cargarPacientesSelects();
-        if (pageName === 'pagos') cargarPacientesSelects();
+        if (pageName === 'pagos') { cargarListaPacientesAdeudos();}
         if (pageName === 'medicamentos') { cargarPacientesSelects(); cargarMedicamentosSelect(); cargarMedicamentosPorPacienteSelect(); }
     }
 
