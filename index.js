@@ -1097,6 +1097,152 @@ app.put('/api/settings', async (req, res) => {
 });
 
 // ============================================================
+// ENDPOINTS PARA DASHBOARD CON MESES
+// ============================================================
+
+// Obtener pagos mensuales
+app.get('/api/pagos/mensuales', async (req, res) => {
+    const { year } = req.query;
+    try {
+        let query = `
+            SELECT 
+                EXTRACT(YEAR FROM fecha_pago) as año,
+                EXTRACT(MONTH FROM fecha_pago) as mes,
+                SUM(monto) as total_pagos
+            FROM pagos
+        `;
+        const params = [];
+        if (year) {
+            params.push(year);
+            query += ` WHERE EXTRACT(YEAR FROM fecha_pago) = $1`;
+        }
+        query += ` GROUP BY EXTRACT(YEAR FROM fecha_pago), EXTRACT(MONTH FROM fecha_pago) ORDER BY año DESC, mes DESC`;
+        
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener datos reales del dashboard por período
+app.get('/api/dashboard/real', async (req, res) => {
+    const { year, month } = req.query;
+    try {
+        let monthlyData = [];
+        
+        if (month && month !== 'all') {
+            // Datos de un mes específico
+            const pagosQuery = await pool.query(`
+                SELECT COALESCE(SUM(monto), 0) as total_pagos
+                FROM pagos
+                WHERE EXTRACT(YEAR FROM fecha_pago) = $1 AND EXTRACT(MONTH FROM fecha_pago) = $2
+            `, [year, month]);
+            
+            const pacientesQuery = await pool.query(`
+                SELECT COUNT(*) as total FROM patients WHERE status = 'active'
+            `);
+            
+            const costosQuery = await pool.query(`
+                SELECT valor FROM financial_config WHERE key = 'costs'
+            `);
+            
+            let costs = { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000 };
+            if (costosQuery.rows.length > 0) {
+                costs = typeof costosQuery.rows[0].valor === 'string' ? JSON.parse(costosQuery.rows[0].valor) : costosQuery.rows[0].valor;
+            }
+            
+            const totalCostos = Object.values(costs).reduce((a,b) => a + (b || 0), 0);
+            const ingresos = parseFloat(pagosQuery.rows[0].total_pagos);
+            const utilidad = ingresos - totalCostos;
+            
+            monthlyData = [{
+                año: parseInt(year),
+                mes: parseInt(month),
+                pacientes: parseInt(pacientesQuery.rows[0].total),
+                ingresos: ingresos,
+                costos: totalCostos,
+                utilidad: utilidad
+            }];
+        } else {
+            // Datos de todo el año
+            const pagosQuery = await pool.query(`
+                SELECT 
+                    EXTRACT(MONTH FROM fecha_pago) as mes,
+                    SUM(monto) as total_pagos
+                FROM pagos
+                WHERE EXTRACT(YEAR FROM fecha_pago) = $1
+                GROUP BY EXTRACT(MONTH FROM fecha_pago)
+                ORDER BY mes
+            `, [year]);
+            
+            const pacientesPorMes = {};
+            for (let i = 1; i <= 12; i++) {
+                const pQuery = await pool.query(`
+                    SELECT COUNT(*) as total FROM patients 
+                    WHERE status = 'active' AND EXTRACT(MONTH FROM created_at) <= $1
+                `, [i]);
+                pacientesPorMes[i] = parseInt(pQuery.rows[0].total);
+            }
+            
+            const costosQuery = await pool.query(`SELECT valor FROM financial_config WHERE key = 'costs'`);
+            let costs = { personal: 52500, food: 30000, medical: 20000, utilities: 10000, supplies: 6500, insurance: 4000 };
+            if (costosQuery.rows.length > 0) {
+                costs = typeof costosQuery.rows[0].valor === 'string' ? JSON.parse(costosQuery.rows[0].valor) : costosQuery.rows[0].valor;
+            }
+            const totalCostos = Object.values(costs).reduce((a,b) => a + (b || 0), 0);
+            
+            monthlyData = [];
+            for (let i = 1; i <= 12; i++) {
+                const pago = pagosQuery.rows.find(r => parseInt(r.mes) === i);
+                const ingresos = pago ? parseFloat(pago.total_pagos) : 0;
+                monthlyData.push({
+                    año: parseInt(year),
+                    mes: i,
+                    pacientes: pacientesPorMes[i] || 0,
+                    ingresos: ingresos,
+                    costos: totalCostos,
+                    utilidad: ingresos - totalCostos
+                });
+            }
+        }
+        
+        // Calcular resumen
+        const summary = {
+            total_pacientes: monthlyData.reduce((sum, m) => Math.max(sum, m.pacientes), 0),
+            ingresos: monthlyData.reduce((sum, m) => sum + m.ingresos, 0),
+            costos: monthlyData.length > 0 ? monthlyData[0].costos : 0,
+            utilidad: monthlyData.reduce((sum, m) => sum + m.utilidad, 0)
+        };
+        
+        // Obtener período anterior para comparación
+        const previousYear = parseInt(year) - 1;
+        const previousPagosQuery = await pool.query(`
+            SELECT COALESCE(SUM(monto), 0) as total_pagos
+            FROM pagos
+            WHERE EXTRACT(YEAR FROM fecha_pago) = $1
+        `, [previousYear]);
+        
+        const previousData = {
+            total_pacientes: 0,
+            ingresos: parseFloat(previousPagosQuery.rows[0].total_pagos),
+            costos: totalCostos,
+            utilidad: parseFloat(previousPagosQuery.rows[0].total_pagos) - totalCostos
+        };
+        
+        res.json({
+            monthly_data: monthlyData,
+            summary: summary,
+            previous_period: previousData
+        });
+        
+    } catch (error) {
+        console.error('Error en dashboard/real:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
 // 12. INICIALIZAR BASE DE DATOS Y ARRANCAR SERVIDOR
 // ============================================================
 const initDB = async () => {
