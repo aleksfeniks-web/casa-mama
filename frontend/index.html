@@ -9,7 +9,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <style>
 
+/* Estilos para selector de período */
+.period-selector {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
 
+.trend-up {
+    color: #10b981;
+}
+
+.trend-down {
+    color: #ef4444;
+}
+
+.trend-neutral {
+    color: #f59e0b;
+}
+
+.metric-btn-active {
+    background: var(--primary) !important;
+    color: white !important;
+}
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
@@ -2240,7 +2266,13 @@ let pacienteSeleccionadoId = null;
 let pacienteSeleccionadoAdeudo = 0;
     let currentCostChartView = 'bar';
 let costChart = null;
-
+let currentPeriodType = 'projection'; // projection, real, comparison
+let currentMetric = 'all';
+let realMonthlyData = [];
+let availableMonths = [];
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+    
 const medicamentosGeriatria = [
     { nombre: "Losartán", presentacion: "Tableta 50mg", dosis: "1 tableta cada 24h" },
     { nombre: "Metformina", presentacion: "Tableta 850mg", dosis: "1 tableta cada 12h" },
@@ -2259,6 +2291,300 @@ const USERS = {
     admin: { password: 'admin', role: 'admin' },
     superadmin: { password: 'superadmin', role: 'superadmin' }
 };
+    // ============================================================
+// DASHBOARD CON SELECTOR DE MESES
+// ============================================================
+
+// Inicializar selectores de mes/año
+async function initPeriodSelectors() {
+    try {
+        // Obtener meses con datos reales
+        const pagosData = await apiFetch('/api/pagos/mensuales');
+        
+        // Extraer años disponibles
+        const years = [...new Set(pagosData.map(p => p.año))].sort((a,b) => b - a);
+        const yearSelect = document.getElementById('yearSelector');
+        if (yearSelect) {
+            yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('');
+        }
+        
+        // Cargar meses disponibles para el año seleccionado
+        await loadAvailableMonths();
+        
+        // Inicializar datos
+        await loadRealData();
+        
+    } catch(e) {
+        console.error('Error inicializando selectores:', e);
+    }
+}
+
+// Cargar meses disponibles
+async function loadAvailableMonths() {
+    const year = document.getElementById('yearSelector')?.value || currentYear;
+    try {
+        const pagosData = await apiFetch(`/api/pagos/mensuales?year=${year}`);
+        availableMonths = [...new Set(pagosData.map(p => p.mes))].sort((a,b) => a - b);
+        
+        const monthSelect = document.getElementById('monthSelector');
+        if (monthSelect) {
+            monthSelect.innerHTML = `
+                <option value="all">Todos los meses</option>
+                ${availableMonths.map(m => `<option value="${m}" ${m === currentMonth ? 'selected' : ''}>${getMonthName(m)}</option>`).join('')}
+            `;
+        }
+    } catch(e) {
+        console.error('Error cargando meses:', e);
+    }
+}
+
+// Obtener nombre del mes
+function getMonthName(month) {
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return months[month - 1];
+}
+
+// Cambiar tipo de período
+function changePeriodType() {
+    currentPeriodType = document.getElementById('periodType').value;
+    if (currentPeriodType === 'projection') {
+        document.getElementById('monthSelector').disabled = true;
+        document.getElementById('yearSelector').disabled = true;
+        updateDashboard();
+    } else {
+        document.getElementById('monthSelector').disabled = false;
+        document.getElementById('yearSelector').disabled = false;
+        loadRealData();
+    }
+}
+
+// Cargar datos reales
+async function loadRealData() {
+    showLoading(true);
+    try {
+        const year = document.getElementById('yearSelector')?.value || currentYear;
+        const month = document.getElementById('monthSelector')?.value;
+        
+        let url = `/api/dashboard/real?year=${year}`;
+        if (month && month !== 'all') {
+            url += `&month=${month}`;
+        }
+        
+        const data = await apiFetch(url);
+        realMonthlyData = data.monthly_data;
+        
+        updateDashboardWithRealData(data);
+        updateMonthlyTable(data.monthly_data);
+        
+        if (currentPeriodType === 'comparison') {
+            updateComparisonChart();
+        } else {
+            updateFinancialChartWithRealData(data.monthly_data);
+        }
+        
+    } catch(e) {
+        console.error('Error cargando datos reales:', e);
+        showToast('Error cargando datos históricos', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Actualizar dashboard con datos reales
+function updateDashboardWithRealData(data) {
+    const summary = data.summary;
+    const previousData = data.previous_period;
+    
+    // Actualizar KPIs con tendencias
+    updateKPIWithTrend('totalPatients', summary.total_pacientes, previousData?.total_pacientes);
+    updateKPIWithTrend('monthlyIncome', summary.ingresos, previousData?.ingresos);
+    updateKPIWithTrend('monthlyCosts', summary.costos, previousData?.costos);
+    updateKPIWithTrend('netProfit', summary.utilidad, previousData?.utilidad);
+}
+
+// Actualizar KPI con indicador de tendencia
+function updateKPIWithTrend(elementId, currentValue, previousValue) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    element.textContent = formatCurrency(currentValue);
+    
+    const trendSpan = document.getElementById(`${elementId.replace('totalPatients', 'pacientes').replace('monthlyIncome', 'ingresos').replace('monthlyCosts', 'costos').replace('netProfit', 'utilidad')}Trend`);
+    if (trendSpan && previousValue) {
+        const change = ((currentValue - previousValue) / previousValue) * 100;
+        const trendClass = change > 0 ? 'trend-up' : (change < 0 ? 'trend-down' : 'trend-neutral');
+        const trendIcon = change > 0 ? '↑' : (change < 0 ? '↓' : '→');
+        trendSpan.innerHTML = `<span class="${trendClass}">${trendIcon} ${Math.abs(change).toFixed(1)}%</span>`;
+    }
+}
+
+// Actualizar tabla de datos mensuales
+function updateMonthlyTable(monthlyData) {
+    const tbody = document.getElementById('monthlyDataBody');
+    if (!tbody) return;
+    
+    if (monthlyData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay datos disponibles</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = monthlyData.map(m => {
+        const margen = m.ingresos > 0 ? ((m.utilidad / m.ingresos) * 100).toFixed(1) : 0;
+        const margenClass = margen >= 20 ? 'text-success' : (margen >= 0 ? 'text-warning' : 'text-danger');
+        
+        return `
+            <tr>
+                <td><strong>${getMonthName(m.mes)} ${m.año}</strong></td>
+                <td>${m.pacientes}</td>
+                <td class="text-success">${formatCurrency(m.ingresos)}</td>
+                <td class="text-danger">${formatCurrency(m.costos)}</td>
+                <td class="${m.utilidad >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(m.utilidad)}</td>
+                <td class="${margenClass}">${margen}%</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Actualizar gráfica financiera con datos reales
+function updateFinancialChartWithRealData(monthlyData) {
+    const ctx = document.getElementById('financialChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    const labels = monthlyData.map(m => `${getMonthName(m.mes)} ${m.año}`);
+    const ingresos = monthlyData.map(m => m.ingresos);
+    const costos = monthlyData.map(m => m.costos);
+    const utilidad = monthlyData.map(m => m.utilidad);
+    
+    if (charts.financial) charts.financial.destroy();
+    
+    let datasets = [];
+    if (currentMetric === 'income' || currentMetric === 'all') {
+        datasets.push({ label: 'Ingresos', data: ingresos, borderColor: '#48bb78', backgroundColor: 'rgba(72, 187, 120, 0.1)', fill: true, tension: 0.4 });
+    }
+    if (currentMetric === 'costs' || currentMetric === 'all') {
+        datasets.push({ label: 'Costos', data: costos, borderColor: '#f56565', backgroundColor: 'rgba(245, 101, 101, 0.1)', fill: true, tension: 0.4 });
+    }
+    if (currentMetric === 'profit' || currentMetric === 'all') {
+        datasets.push({ label: 'Utilidad', data: utilidad, borderColor: '#4299e1', backgroundColor: 'rgba(66, 153, 225, 0.1)', fill: true, tension: 0.4 });
+    }
+    
+    charts.financial = new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}` } }
+            },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' } } }
+        }
+    });
+}
+
+// Cambiar métrica mostrada en la gráfica
+function toggleMetric(metric) {
+    currentMetric = metric;
+    
+    // Actualizar estilos de botones
+    document.querySelectorAll('[onclick^="toggleMetric"]').forEach(btn => {
+        btn.classList.remove('metric-btn-active');
+    });
+    event.target.classList.add('metric-btn-active');
+    
+    if (currentPeriodType === 'real') {
+        updateFinancialChartWithRealData(realMonthlyData);
+    } else if (currentPeriodType === 'projection') {
+        updateCharts(pacientes.filter(p => p.status === 'active').length);
+    }
+}
+
+// Exportar datos mensuales
+function exportMonthlyData() {
+    const tbody = document.getElementById('monthlyDataBody');
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    const csvData = [['Mes', 'Pacientes', 'Ingresos', 'Costos', 'Utilidad', 'Margen']];
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td');
+        if (cols.length > 0) {
+            csvData.push(Array.from(cols).map(col => col.textContent.trim()));
+        }
+    });
+    
+    const csvContent = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `datos_mensuales_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Datos exportados');
+}
+
+function exportDashboardData() {
+    exportMonthlyData();
+}
+
+// Modificar updateDashboard para soportar proyecciones
+function updateDashboard() {
+    const activePatients = pacientes.filter(p => p.status === 'active').length;
+    
+    if (currentPeriodType === 'projection') {
+        // Mostrar proyección a 12 meses
+        const proj = generateProjection(activePatients);
+        const currentMonthIndex = new Date().getMonth();
+        const currentIncome = proj.income[currentMonthIndex] || 0;
+        const currentCosts = proj.costs[currentMonthIndex] || 0;
+        const currentProfit = currentIncome - currentCosts;
+        
+        document.getElementById('totalPatients').textContent = activePatients;
+        document.getElementById('monthlyIncome').textContent = formatCurrency(currentIncome);
+        document.getElementById('monthlyCosts').textContent = formatCurrency(currentCosts);
+        document.getElementById('netProfit').textContent = formatCurrency(currentProfit);
+        
+        updateCharts(activePatients);
+    } else {
+        loadRealData();
+    }
+}
+
+// Actualizar la función updateCharts existente
+function updateCharts(patientCount) {
+    if (!charts.financial) initCharts();
+    const proj = generateProjection(patientCount);
+    
+    if (charts.financial) {
+        let datasets = [];
+        if (currentMetric === 'income' || currentMetric === 'all') {
+            datasets.push({ label: 'Ingresos', data: proj.income, borderColor: '#48bb78', fill: true, tension: 0.4 });
+        }
+        if (currentMetric === 'costs' || currentMetric === 'all') {
+            datasets.push({ label: 'Costos', data: proj.costs, borderColor: '#f56565', fill: true, tension: 0.4 });
+        }
+        if (currentMetric === 'profit' || currentMetric === 'all') {
+            datasets.push({ label: 'Utilidad', data: proj.profit, borderColor: '#4299e1', fill: true, tension: 0.4 });
+        }
+        
+        charts.financial.data.datasets = datasets;
+        charts.financial.update();
+    }
+    
+    updateCostChart();
+}
+
+// Inicializar en DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    checkAuth();
+    setupKPIClicks();
+    refreshAll();
+    loadPatients();
+    initPeriodSelectors();
+});
 
 // ============================================================
 // FUNCIONES UTILITARIAS
