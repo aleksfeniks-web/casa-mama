@@ -1290,19 +1290,85 @@
             </div>
         </div>
 
-        <!-- Pagos Page -->
-        <div id="page-pagos" class="page" style="display:none;">
-            <div class="page-header">
-                <h1 class="page-title"><i class="fas fa-dollar-sign"></i> Pagos y Adeudos</h1>
-                <button class="btn btn-primary" onclick="openPagoModal()"><i class="fas fa-plus"></i> Registrar Pago</button>
-            </div>
-            <div class="card">
-                <div class="card-header"><h3>Seleccionar Paciente</h3></div>
-                <select id="pagosPacienteSelect" class="form-control" onchange="cargarPagosPaciente()"></select>
-                <div id="adeudoInfo" style="margin-top:20px;"></div>
-                <div id="pagosList" style="margin-top:20px;"></div>
+        <!-- Pagos Page - Nuevo diseño similar a nómina -->
+<div id="page-pagos" class="page" style="display:none;">
+    <div class="page-header">
+        <h1 class="page-title"><i class="fas fa-dollar-sign"></i> Pagos y Adeudos</h1>
+        <div>
+            <button class="btn btn-primary" onclick="openPagoModal()">
+                <i class="fas fa-plus"></i> Registrar Pago
+            </button>
+            <button class="btn btn-success" onclick="exportarReportePagos()">
+                <i class="fas fa-file-excel"></i> Exportar Reporte
+            </button>
+        </div>
+    </div>
+
+    <!-- KPIs de pagos -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-content">
+                <div><h3>Total Adeudos</h3><div class="kpi-value" id="totalAdeudos">$0</div></div>
+                <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
             </div>
         </div>
+        <div class="kpi-card success">
+            <div class="kpi-content">
+                <div><h3>Ingresos del Mes</h3><div class="kpi-value" id="ingresosMes">$0</div></div>
+                <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+            </div>
+        </div>
+        <div class="kpi-card warning">
+            <div class="kpi-content">
+                <div><h3>Tasa de Cobranza</h3><div class="kpi-value" id="tasaCobranza">0%</div></div>
+                <div class="kpi-icon"><i class="fas fa-percent"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de pacientes con adeudos (similar a empleados) -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-users"></i> Pacientes con Adeudos</h3>
+            <div class="search-box" style="width: 250px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchPacienteAdeudo" placeholder="Buscar paciente..." oninput="filtrarTablaAdeudos()">
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table" id="adeudosTable">
+                <thead>
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Plan</th>
+                        <th>Mensualidad</th>
+                        <th>Adeudo</th>
+                        <th>Meses Atraso</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="adeudosTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historial de pagos por paciente (acordeón) -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-history"></i> Historial de Pagos</h3>
+            <select id="pagosPacienteSelect" class="form-control" style="width: auto;" onchange="cargarHistorialPagos()">
+                <option value="">-- Seleccionar paciente --</option>
+            </select>
+        </div>
+        <div id="historialPagosContainer" style="margin-top: 20px;">
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <p>Seleccione un paciente para ver su historial de pagos</p>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Nómina Page -->
         <div id="page-nomina" class="page" style="display:none;">
