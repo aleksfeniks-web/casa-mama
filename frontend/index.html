@@ -2135,6 +2135,8 @@ let inversionistasChart = null;
 let todosLosPacientes = [];
 let pacienteSeleccionadoId = null;
 let pacienteSeleccionadoAdeudo = 0;
+    let currentCostChartView = 'bar';
+let costChart = null;
 
 const medicamentosGeriatria = [
     { nombre: "Losartán", presentacion: "Tableta 50mg", dosis: "1 tableta cada 24h" },
@@ -2390,16 +2392,190 @@ function updateCharts(patientCount) {
     const income = patientCount * (window.financialConfig?.pricePerPatient || 12000);
     const contingency = income * ((c.contingencyPercent || 10) / 100);
     const proj = generateProjection(patientCount);
+    
     if (charts.financial) {
         charts.financial.data.datasets[0].data = proj.income;
         charts.financial.data.datasets[1].data = proj.costs;
         charts.financial.data.datasets[2].data = proj.profit;
         charts.financial.update();
     }
-    if (charts.cost) {
-        charts.cost.data.datasets[0].data = [c.personal || 0, c.food || 0, c.medical || 0, c.utilities || 0, c.supplies || 0, c.insurance || 0, contingency];
-        charts.cost.update();
+    
+    // NUEVO: Actualizar gráfica de costos interactiva
+    updateCostChart();
+}
+
+// NUEVA FUNCIÓN: Actualizar gráfica de costos
+function updateCostChart() {
+    const c = window.financialConfig?.costs || {};
+    const income = pacientes.filter(p => p.status === 'active').length * (window.financialConfig?.pricePerPatient || 12000);
+    const contingency = income * ((c.contingencyPercent || 10) / 100);
+    
+    const costItems = [
+        { name: 'Personal', value: c.personal || 52500, color: '#667eea', icon: 'fa-user-nurse' },
+        { name: 'Alimentación', value: c.food || 30000, color: '#ed8936', icon: 'fa-utensils' },
+        { name: 'Médicos', value: c.medical || 20000, color: '#f56565', icon: 'fa-stethoscope' },
+        { name: 'Servicios', value: c.utilities || 10000, color: '#4299e1', icon: 'fa-bolt' },
+        { name: 'Insumos', value: c.supplies || 6500, color: '#764ba2', icon: 'fa-syringe' },
+        { name: 'Seguros', value: c.insurance || 4000, color: '#48bb78', icon: 'fa-shield-alt' },
+        { name: 'Contingencia', value: contingency, color: '#cbd5e0', icon: 'fa-chart-line' }
+    ];
+    
+    const total = costItems.reduce((sum, item) => sum + item.value, 0);
+    
+    // Actualizar tabla detallada
+    const costDetails = document.getElementById('costDetails');
+    if (costDetails) {
+        costDetails.innerHTML = costItems.map(item => `
+            <div class="cost-card" onclick="showToast('${item.name}: ${formatCurrency(item.value)} (${((item.value/total)*100).toFixed(1)}%)', 'info')">
+                <div class="cost-name"><i class="fas ${item.icon}"></i> ${item.name}</div>
+                <div class="cost-amount">${formatCurrency(item.value)}</div>
+                <div class="cost-percent">${((item.value/total)*100).toFixed(1)}%</div>
+                <div class="cost-progress">
+                    <div class="cost-progress-bar" style="width: ${(item.value/total)*100}%; background: ${item.color};"></div>
+                </div>
+            </div>
+        `).join('');
     }
+    
+    // Actualizar gráfica según la vista seleccionada
+    const ctx = document.getElementById('costChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    if (costChart) costChart.destroy();
+    
+    const labels = costItems.map(item => item.name);
+    const values = costItems.map(item => item.value);
+    const colors = costItems.map(item => item.color);
+    
+    if (currentCostChartView === 'bar') {
+        costChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Costo Mensual',
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const percent = ((value / total) * 100).toFixed(1);
+                                return `${context.dataset.label}: ${formatCurrency(value)} (${percent}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+                        title: { display: true, text: 'Costo Mensual', font: { weight: 'bold' } }
+                    },
+                    x: {
+                        ticks: { rotation: -45, autoSkip: true, maxRotation: 45, minRotation: 45 }
+                    }
+                },
+                onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].dataIndex;
+                        const item = costItems[index];
+                        showToast(`${item.name}: ${formatCurrency(item.value)} (${((item.value/total)*100).toFixed(1)}% del total)`, 'info');
+                    }
+                }
+            }
+        });
+    } else if (currentCostChartView === 'pie') {
+        costChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: 'white',
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const percent = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: ${formatCurrency(value)} (${percent}%)`;
+                            }
+                        }
+                    }
+                },
+                onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].dataIndex;
+                        const item = costItems[index];
+                        showToast(`${item.name}: ${formatCurrency(item.value)} (${((item.value/total)*100).toFixed(1)}% del total)`, 'info');
+                    }
+                }
+            }
+        });
+    } else if (currentCostChartView === 'horizontal') {
+        costChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Costo Mensual',
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const percent = ((value / total) * 100).toFixed(1);
+                                return `${formatCurrency(value)} (${percent}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+                        title: { display: true, text: 'Costo Mensual' }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// NUEVA FUNCIÓN: Cambiar vista de la gráfica
+function toggleCostChartView(view) {
+    currentCostChartView = view;
+    updateCostChart();
 }
 
 function setupKPIClicks() {
