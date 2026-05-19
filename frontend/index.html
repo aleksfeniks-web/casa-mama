@@ -2376,14 +2376,7 @@ function initCharts() {
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' } } } }
         });
     }
-    const ctx2 = document.getElementById('costChart')?.getContext('2d');
-    if (ctx2) {
-        charts.cost = new Chart(ctx2, {
-            type: 'doughnut',
-            data: { labels: ['Personal','Alimentación','Médicos','Servicios','Insumos','Seguros','Contingencia'], datasets: [{ data: [], backgroundColor: ['#667eea','#ed8936','#f56565','#4299e1','#764ba2','#48bb78','#cbd5e0'] }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
+    // ELIMINA la parte del costChart (ya no es necesaria aquí)
 }
 
 function updateCharts(patientCount) {
